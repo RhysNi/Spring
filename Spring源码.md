@@ -42,6 +42,23 @@ Test test = new Test();
 
 ### BeanFactory设计 
 
+> - 由于BeanFactory需要对外提供`Bean`实例，所以需要一个`getBean()`方法
+>
+> - BeanFactory需要知道生产哪个类型的`bean`，所以需要接受`bean`的名称来获取到对应的bean类型，返回对应的实例
+> - 由于`bean`是有多个以`key-value`形式记录在Map中，所以返回类型是不确定且不唯一的，我们使用`Object`类型作为返回类型
+>   - 这边作为接口防止实现类中抛出异常，咱们手动`throws Exception`，这样无论实现类中抛出什么异常都可以接住了	
+
+```java
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/2/7 12:08 AM
+ */
+public interface BeanFactory {
+    Object getBean(String beanName) throws Exception;
+}
+```
+
 ### BeanFactory实现
 
 #### 实现BeanDefinitionRegistry
