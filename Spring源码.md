@@ -12,7 +12,7 @@ Test test = new Test();
 
 > 控制反转 -> 获取对象的方式被反转了
 
-![image-20230206220403788](/Users/Rhys.Ni/Library/Application Support/typora-user-images/image-20230206220403788.png)
+![image-20230206220403788](https://article.biliimg.com/bfs/article/598b3491595f3a3696c4966056717d7911b83640.png)
 
 > **IoC容器是工厂模式的实例**
 >
@@ -20,7 +20,7 @@ Test test = new Test();
 >
 > **`bean`：组件,也就是类的对象!**
 
-![image-20230206233921048](/Users/Rhys.Ni/Library/Application Support/typora-user-images/image-20230206233921048.png)
+![image-20230206233921048](https://article.biliimg.com/bfs/article/8c7455b7034df73b9f96f672c4016e9ca99768ca.png)
 
 ### IoC的优点
 
@@ -32,7 +32,7 @@ Test test = new Test();
 
 > **负责创建，管理类实例，向使用者提供实例**
 
-![image-20230206233240548](/Users/Rhys.Ni/Library/Application Support/typora-user-images/image-20230206233240548.png)
+![image-20230206233240548](https://article.biliimg.com/bfs/article/8157754d5c5d0fa0cfb9280fc6864b60071323a0.png)
 
 ## IoC实现
 
@@ -59,7 +59,9 @@ public interface BeanFactory {
 }
 ```
 
-### BeanFactory实现
+### BeanDefinition
+
+
 
 #### 实现BeanDefinitionRegistry
 
