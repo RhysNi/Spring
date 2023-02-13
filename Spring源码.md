@@ -59,11 +59,198 @@ public interface BeanFactory {
 }
 ```
 
+> 上面定义了Bean工厂对外提供`bean`实例的方法，那么BeanFactory怎么知道该创建哪个对象，又是怎么创建对象的呢？
+>
+> **首先我们得把Bean的定义信息告诉`BeanFactory`,然后`BeanFactory`根据Bean的定义信息来生成对应的bean实力对象**
+>
+> - 因此我们需要定义一个模型（`BeanDefinition`）来表示`如何创建Bean实例的信息`
+> - 另外，`BeanFactory`也需要提供一个入参来接收`Bean的定义信息`
+
 ### BeanDefinition
 
+#### Bean定义的作用
+
+> 告诉`BeanFactory`应该如何创建某个类的`Bean实力`
+
+#### 获取实例的方式有哪些
+
+##### 构造方法
+
+> `BeanDefinition`需要`给BeanFactory`提供`类名`
+
+```java
+Person person = new Person();
+```
+
+##### 工厂静态方法
+
+> `BeanDefinition`需要`给BeanFactory`提供`工厂类名`、`工厂方法名`
+
+```java
+public interface PersonFactory {
+    public static Person getPerson(){
+      return new Person();
+    }
+}
+```
+
+##### 工厂成员方法
+
+> `BeanDefinition`需要`给BeanFactory`提供`工厂bean名`、`工厂方法名`
+
+```java
+public interface PersonFactory {
+    public Person getPerson(){
+      return new Person();
+    }
+}
+```
+
+> 因此我们需要在`BeanDefinition`接口中具备以下几种功能
+
+![image-20230214004511598](https://article.biliimg.com/bfs/article/6eac69528b22ea29a06f35d9b4b96b3f5a440bb4.png)
+
+```java
+public interface BeanDefinition {
+    Class<?> getBeanClass();
+
+    String getFactoryBeanName();
+
+    String getFactoryMethodName();
+}
+```
+
+### BeanDefinition增强功能
+
+> - 在现有基础上增加单例对象的初始化和销毁功能等
+> - 同时创建一个通用实现类`GenericBeanDefinition`
+
+![image-20230214023112763](https://article.biliimg.com/bfs/article/9c97a8fd005a97b5d3114146afcb206d25f978cb.png)
+
+```java
+package com.rhys.spring.beans;
+
+import org.apache.commons.lang.StringUtils;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/2/7 12:09 AM
+ */
+public interface BeanDefinition {
+
+    String SCOPE_SINGLETON = "singleton";
+    String SCOPE_PROTOTYPE = "prototype";
+
+    /**
+     * 对外提供具体的Bean类
+     *
+     * @param
+     * @return java.lang.Class<?>
+     * @author Rhys.Ni
+     * @date 2023/2/14
+     */
+    Class<?> getBeanClass();
+
+    /**
+     * 对外提供工厂bean名
+     * @author Rhys.Ni
+     * @date 2023/2/14
+     * @param
+     * @return java.lang.String
+     */
+    String getFactoryBeanName();
+
+    /**
+     * 对外提供工厂方法名
+     * @author Rhys.Ni
+     * @date 2023/2/14
+     * @param
+     * @return java.lang.String
+     */
+    String getFactoryMethodName();
+
+    /**
+     * 初始化方法
+     * @author Rhys.Ni
+     * @date 2023/2/14
+     * @param
+     * @return java.lang.String
+     */
+    String getInitMethodName();
+
+    /**
+     * 销毁方法
+     * @author Rhys.Ni
+     * @date 2023/2/14
+     * @param
+     * @return java.lang.String
+     */
+    String getDestroyMethodName();
+
+    /**
+     * 作用域
+     * @author Rhys.Ni
+     * @date 2023/2/14
+     * @param
+     * @return java.lang.String
+     */
+    String getScope();
+
+    /**
+     * 是否是单例
+     * @author Rhys.Ni
+     * @date 2023/2/14
+     * @param
+     * @return boolean
+     */
+    boolean isSingleton();
+
+    /**
+     * 是否是原型
+     * @author Rhys.Ni
+     * @date 2023/2/14
+     * @param
+     * @return boolean
+     */
+    boolean isPrototype();
+
+    /**
+     * 是否是主要
+     * @author Rhys.Ni
+     * @date 2023/2/14
+     * @param
+     * @return boolean
+     */
+    boolean isPrimary();
 
 
-#### 实现BeanDefinitionRegistry
+    /**
+     * 校验bean定义的合法性
+     *
+     * @param
+     * @return boolean
+     * @author Rhys.Ni
+     * @date 2023/2/7
+     */
+    default boolean validate() {
+        //没定义class,工厂bean或工厂方法没指定的均不合法
+        if (this.getBeanClass() == null) {
+            if (StringUtils.isBlank(this.getFactoryBeanName()) || StringUtils.isBlank(this.getFactoryMethodName())) {
+                return false;
+            }
+        }
+
+        //定义了类，又定义工厂bean认为不合法，这里都不为空则满足以上条件，任意一个为空则校验通过
+        return this.getBeanClass() == null || StringUtils.isBlank(this.getFactoryBeanName());
+    }
+}
+
+```
+
+### Bean的注册
+
+> 清楚了`BeanDefinition`与`BeanFactory`后，那么他们之间有什么关联呢？
 
 > 实现Bean定义信息的注册
 

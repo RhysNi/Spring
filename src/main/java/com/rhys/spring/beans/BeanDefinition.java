@@ -12,21 +12,88 @@ public interface BeanDefinition {
     String SCOPE_SINGLETON = "singleton";
     String SCOPE_PROTOTYPE = "prototype";
 
+    /**
+     * 对外提供具体的Bean类
+     *
+     * @param
+     * @return java.lang.Class<?>
+     * @author Rhys.Ni
+     * @date 2023/2/14
+     */
     Class<?> getBeanClass();
 
-    String getScope();
-
-    boolean isSingleton();
-
-    boolean isPrototype();
-
+    /**
+     * 对外提供工厂bean名
+     * @author Rhys.Ni
+     * @date 2023/2/14
+     * @param
+     * @return java.lang.String
+     */
     String getFactoryBeanName();
 
+    /**
+     * 对外提供工厂方法名
+     * @author Rhys.Ni
+     * @date 2023/2/14
+     * @param
+     * @return java.lang.String
+     */
     String getFactoryMethodName();
 
+    /**
+     * 初始化方法
+     * @author Rhys.Ni
+     * @date 2023/2/14
+     * @param
+     * @return java.lang.String
+     */
     String getInitMethodName();
 
+    /**
+     * 销毁方法
+     * @author Rhys.Ni
+     * @date 2023/2/14
+     * @param
+     * @return java.lang.String
+     */
+    String getDestroyMethodName();
+
+    /**
+     * 作用域
+     * @author Rhys.Ni
+     * @date 2023/2/14
+     * @param
+     * @return java.lang.String
+     */
+    String getScope();
+
+    /**
+     * 是否是单例
+     * @author Rhys.Ni
+     * @date 2023/2/14
+     * @param
+     * @return boolean
+     */
+    boolean isSingleton();
+
+    /**
+     * 是否是原型
+     * @author Rhys.Ni
+     * @date 2023/2/14
+     * @param
+     * @return boolean
+     */
+    boolean isPrototype();
+
+    /**
+     * 是否是主要
+     * @author Rhys.Ni
+     * @date 2023/2/14
+     * @param
+     * @return boolean
+     */
     boolean isPrimary();
+
 
     /**
      * 校验bean定义的合法性
