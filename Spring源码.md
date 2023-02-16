@@ -120,7 +120,7 @@ public interface BeanDefinition {
 }
 ```
 
-### BeanDefinition增强功能
+#### BeanDefinition增强功能
 
 > - 在现有基础上增加单例对象的初始化和销毁功能等
 > - 同时创建一个通用实现类`GenericBeanDefinition`
@@ -248,20 +248,80 @@ public interface BeanDefinition {
 
 ```
 
-### Bean的注册
+### BeanDefinitionRegistry
 
 > 清楚了`BeanDefinition`与`BeanFactory`后，那么他们之间有什么关联呢？
+>
+> - 需要定义一个`BeanDefinitionRegistry`用来实现`BeanDefinition`的注册功能
+> - `BeanDefinitionRegistry`需要具备`注册BeanDefinition`和`获取BeanDefinition`能力
+> - 为了能区分每个`Bean`的定义信息，还需要给每个`Bean`定义一个唯一名称
+
+![image-20230216112804729](https://article.biliimg.com/bfs/article/3089c16936978dcc654c271f688b5f62954749ee.png)
+
+```java
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/2/7 12:09 AM
+ */
+public interface BeanDefinitionRegistry {
+
+    /**
+     * 注册BeanDefinition
+     *
+     * @param beanName       - bean名称
+     * @param beanDefinition - bean定义
+     * @author Rhys.Ni
+     * @date 2023/2/14
+     */
+    void registryBeanDefinition(String beanName, BeanDefinition beanDefinition);
+
+    /**
+     * 获取BeanDefinition
+     *
+     * @param beanName - bean名称
+     * @return com.rhys.spring.beans.BeanDefinition
+     * @author Rhys.Ni
+     * @date 2023/2/14
+     */
+    BeanDefinition getBeanDefinition(String beanName);
+
+    /**
+     * 判断是否已经存在
+     *
+     * @param beanName - bean名称
+     * @return boolean
+     * @author Rhys.Ni
+     * @date 2023/2/14
+     */
+    boolean containsBeanDefinition(String beanName);
+}
+```
+
+### DefaultBeanFactory实现
+
+> 综上，目前已经实现的相关功能设计如下：
+>
+> - 已经设计好了`BeanFactory`、`BeanDefinition`、`BeanDefinitionRegistry`
+> - 现在需要实现一个默认的Bean工厂
+
+补图
 
 > 实现Bean定义信息的注册
 
-```java
 
-```
 
-#### 实现BeanFactory的getBean方法
+> 实现Bean工厂定义的getBean方法
 
-#### 实现init方法
 
-#### 实现单例作用域
 
-#### 实现容器关闭时单例的销毁操作
+> 实现初始化方法的执行
+
+
+
+> 实现单例的要求
+
+
+
+> 实现容器关闭是执行单例的销毁操作
+

@@ -108,6 +108,8 @@ public interface BeanDefinition {
         if (this.getBeanClass() == null) {
             if (StringUtils.isBlank(this.getFactoryBeanName()) || StringUtils.isBlank(this.getFactoryMethodName())) {
                 return false;
+
+
             }
         }
 
