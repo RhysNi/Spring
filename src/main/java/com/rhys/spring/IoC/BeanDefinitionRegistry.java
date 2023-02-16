@@ -1,4 +1,6 @@
-package com.rhys.spring.beans;
+package com.rhys.spring.IoC;
+
+import com.rhys.spring.IoC.exception.BeanDefinitionRegistryException;
 
 /**
  * @author Rhys.Ni
@@ -10,17 +12,17 @@ public interface BeanDefinitionRegistry {
     /**
      * 注册BeanDefinition
      *
-     * @param beanName       - bean名称
-     * @param beanDefinition - bean定义
+     * @param beanName bean名称
+     * @param beanDefinition bean定义
      * @author Rhys.Ni
      * @date 2023/2/14
      */
-    void registryBeanDefinition(String beanName, BeanDefinition beanDefinition);
+    void registryBeanDefinition(String beanName, BeanDefinition beanDefinition) throws BeanDefinitionRegistryException;
 
     /**
      * 获取BeanDefinition
      *
-     * @param beanName - bean名称
+     * @param beanName bean名称
      * @return com.rhys.spring.beans.BeanDefinition
      * @author Rhys.Ni
      * @date 2023/2/14
@@ -30,7 +32,7 @@ public interface BeanDefinitionRegistry {
     /**
      * 判断是否已经存在
      *
-     * @param beanName - bean名称
+     * @param beanName bean名称
      * @return boolean
      * @author Rhys.Ni
      * @date 2023/2/14

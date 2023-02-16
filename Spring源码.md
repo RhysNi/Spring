@@ -34,7 +34,7 @@ Test test = new Test();
 
 ![image-20230206233240548](https://article.biliimg.com/bfs/article/8157754d5c5d0fa0cfb9280fc6864b60071323a0.png)
 
-## IoC实现
+## 手写IoC实现
 
 ### BeanFactory作用
 
@@ -128,7 +128,7 @@ public interface BeanDefinition {
 ![image-20230214023112763](https://article.biliimg.com/bfs/article/9c97a8fd005a97b5d3114146afcb206d25f978cb.png)
 
 ```java
-package com.rhys.spring.beans;
+package com.rhys.spring.IoC;
 
 import org.apache.commons.lang.StringUtils;
 
@@ -280,7 +280,7 @@ public interface BeanDefinitionRegistry {
      * 获取BeanDefinition
      *
      * @param beanName - bean名称
-     * @return com.rhys.spring.beans.BeanDefinition
+     * @return com.rhys.spring.IoC.BeanDefinition
      * @author Rhys.Ni
      * @date 2023/2/14
      */
@@ -303,25 +303,111 @@ public interface BeanDefinitionRegistry {
 > 综上，目前已经实现的相关功能设计如下：
 >
 > - 已经设计好了`BeanFactory`、`BeanDefinition`、`BeanDefinitionRegistry`
-> - 现在需要实现一个默认的Bean工厂
+> - 现在需要实现一个默认的Bean工厂`DefaultBeanFactory`
 
-补图
+![image-20230216232054068](https://article.biliimg.com/bfs/article/9b0e12de3cf00da6eef52114913703018a8eee58.png)
 
-> 实现Bean定义信息的注册
+> 实现`BeanDefinitionRegistry`,这里有以下几个注意点
+>
+> - 如何存储`BeanDefinition`
+>   - 使用`Map<String,Object>`
+> - `beanName`重名怎么办
+>   - Spring中`默认`是`不可覆盖`，直接抛异常
+>   - 可通过参数 `spring.main.allow-bean-definition-overriding: true `来允许覆盖
+> - 先实现`registryBeanDefinition`、`getBeanDefinition`、`containsBeanDefinition`
+>   - 这里需要先定义一个`beanDefinitionMap`来存放合法的`beanDefinition`
+>   - 后面比较以及获取`beanDefinition`都以这个Map中的数据为基准
 
+```java
+public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, Closeable {
 
+    private Map<String, BeanDefinition> beanDefinitionMap = new ConcurrentHashMap<>(256);
 
-> 实现Bean工厂定义的getBean方法
+    /**
+     * 注册BeanDefinition
+     *
+     * @param beanName       bean名称
+     * @param beanDefinition bean定义
+     * @author Rhys.Ni
+     * @date 2023/2/14
+     */
+    @Override
+    public void registryBeanDefinition(String beanName, BeanDefinition beanDefinition) throws BeanDefinitionRegistryException {
+        //入参判空
+        Objects.requireNonNull(beanName, "beanName不能为空");
+        Objects.requireNonNull(beanDefinition, "beanDefinition不能为空");
 
+        //校验bean合法性  beanDefinition named a is invalid
+        if (!beanDefinition.validate()) {
+            throw new BeanDefinitionRegistryException("beanDefinition named " + beanName + " is invalid !");
+        }
 
+        //校验beanName是否已存在，重复则抛异常
+        if (this.containsBeanDefinition(beanName)) {
+            throw new BeanDefinitionRegistryException(beanName + " Already exists ! " + this.getBeanDefinition(beanName));
+        }
 
-> 实现初始化方法的执行
+        //存储成功注册的bean以及beanDefinition
+        beanDefinitionMap.put(beanName, beanDefinition);
+    }
 
+    /**
+     * 获取BeanDefinition
+     *
+     * @param beanName bean名称
+     * @return com.rhys.spring.beans.BeanDefinition
+     * @author Rhys.Ni
+     * @date 2023/2/14
+     */
+    @Override
+    public BeanDefinition getBeanDefinition(String beanName) {
+        //从beanDefinitionMap中获取注册成功的bean定义
+        return this.beanDefinitionMap.get(beanName);
+    }
 
+    /**
+     * 判断是否已经存在
+     *
+     * @param beanName bean名称
+     * @return boolean
+     * @author Rhys.Ni
+     * @date 2023/2/14
+     */
+    @Override
+    public boolean containsBeanDefinition(String beanName) {
+        //对比beanDefinitionMap中是否存在相同key
+        return this.beanDefinitionMap.containsKey(beanName);
+    }
+}
+```
 
-> 实现单例的要求
+> 实现初始化方法的执行,在下面`getBean`方法中将`创建实例`时会执行所传入的`BeanDefinition`中的`初始化方法`,所以先实现一下
 
+```java
+/**
+ * 初始化方法
+ *
+ * @param beanDefinition
+ * @param instance
+ * @return void
+ * @author Rhys.Ni
+ * @date 2023/2/17
+ */
+private void init(BeanDefinition beanDefinition, Object instance) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+    if (StringUtils.isNotBlank(beanDefinition.getInitMethodName())) {
+        //获取所传入实例的初始化方法名称进行调用
+        Method method = instance.getClass().getMethod(beanDefinition.getInitMethodName(), null);
+        method.invoke(instance, null);
+    }
+}
+```
 
+> 实现`BeanFactory`的`getBean`方法
 
-> 实现容器关闭是执行单例的销毁操作
+```java
 
+```
+
+- 实现单例的要求
+- 
+- 实现容器关闭是执行单例的销毁操作

@@ -1,4 +1,4 @@
-package com.rhys.spring.beans;
+package com.rhys.spring.IoC;
 
 import org.apache.commons.lang.StringUtils;
 
