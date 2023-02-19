@@ -20,6 +20,8 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
 
     private Map<String, BeanDefinition> beanDefinitionMap = new ConcurrentHashMap<>(256);
 
+    private Map<String, Object> singletonBeanMap = new ConcurrentHashMap<>(256);
+
     /**
      * 注册BeanDefinition
      *
@@ -87,7 +89,33 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
      */
     @Override
     public Object getBean(String beanName) throws Exception {
+        return this.doGetBean(beanName);
+    }
+
+    private Object doGetBean(String beanName) {
+        //校验beanName
+        Objects.requireNonNull(beanName,"beanName can not be empty !");
+
+        //
         return null;
+    }
+
+
+    /**
+     * 初始化方法
+     *
+     * @param beanDefinition
+     * @param instance
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/2/17
+     */
+    private void init(BeanDefinition beanDefinition, Object instance) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        if (StringUtils.isNotBlank(beanDefinition.getInitMethodName())) {
+            //获取所传入实例的初始化方法名称进行调用
+            Method method = instance.getClass().getMethod(beanDefinition.getInitMethodName(), null);
+            method.invoke(instance, null);
+        }
     }
 
     /**
@@ -106,24 +134,5 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
     @Override
     public void close() throws IOException {
 
-    }
-
-
-
-    /**
-     * 初始化方法
-     *
-     * @param beanDefinition
-     * @param instance
-     * @return void
-     * @author Rhys.Ni
-     * @date 2023/2/17
-     */
-    private void init(BeanDefinition beanDefinition, Object instance) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-        if (StringUtils.isNotBlank(beanDefinition.getInitMethodName())) {
-            //获取所传入实例的初始化方法名称进行调用
-            Method method = instance.getClass().getMethod(beanDefinition.getInitMethodName(), null);
-            method.invoke(instance, null);
-        }
     }
 }
