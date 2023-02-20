@@ -1,6 +1,8 @@
 package com.rhys.spring.IoC;
 
 import com.rhys.spring.IoC.exception.BeanDefinitionRegistryException;
+import com.sun.org.slf4j.internal.Logger;
+import com.sun.org.slf4j.internal.LoggerFactory;
 import org.apache.commons.lang.StringUtils;
 
 import java.io.Closeable;
@@ -17,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * @date 2023/2/16 11:19 PM
  */
 public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, Closeable {
+    private static final Logger logger = LoggerFactory.getLogger(DefaultBeanFactory.class);
 
     private Map<String, BeanDefinition> beanDefinitionMap = new ConcurrentHashMap<>(256);
 
@@ -92,12 +95,75 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
         return this.doGetBean(beanName);
     }
 
-    private Object doGetBean(String beanName) {
+    private Object doGetBean(String beanName) throws Exception {
         //校验beanName
-        Objects.requireNonNull(beanName,"beanName can not be empty !");
+        Objects.requireNonNull(beanName, "beanName can not be empty !");
 
-        //
+        //从单例Bean所存储的Map中根据beanName获取一下这个Bean实例，获取到直接返回
+        Object beanInstance = singletonBeanMap.get(beanName);
+        if (beanInstance != null) {
+            return beanInstance;
+        }
+
+        //没获取到则根据BeanDefinition创建Bean实例并且存放到Map中
+        BeanDefinition beanDefinition = beanDefinitionMap.get(beanName);
+        Objects.requireNonNull(beanDefinition, "beanDefinition named " + beanName + " is invalid !");
+
+        if (beanDefinition.isSingleton()) {
+            synchronized (this.singletonBeanMap) {
+                //双重检查，再次根据beanName从单例Map中尝试获取Bean实例，如果还是没有获取到再开始创建
+                beanInstance = this.singletonBeanMap.get(beanName);
+                if (beanInstance == null) {
+                    //创建实例
+                    beanInstance = createInstance(beanDefinition);
+                    //存到singletonBeanMap中
+                    singletonBeanMap.put(beanName, beanInstance);
+                }
+            }
+        } else {
+            //如果不要求为单例则直接创建,不用往单例BeanMap中存，所以不关心是否存在
+            beanInstance = createInstance(beanDefinition);
+        }
+        return beanInstance;
+    }
+
+
+    private Object createInstance(BeanDefinition beanDefinition) throws Exception {
+        //获取bean定义对应的类(类即类型)
+        Class<?> beanClass = beanDefinition.getBeanClass();
+        Object beanInstance = null;
+
+        //根据beanClass中能获取到的信息来创建实例,beanClass为空则直接通过工厂bean方式创建实例
+        if (beanClass != null) {
+            //获取并判断工厂成员方法名是否为空，为空则根据构造方法创建实例，否则直接根据工厂静态方法创建实例
+            if (StringUtils.isBlank(beanDefinition.getFactoryMethodName())) {
+                beanInstance = this.createInstanceByConstructor(beanDefinition);
+            } else {
+                beanInstance = this.createInstanceByStaticFactoryMethod(beanDefinition);
+            }
+        } else {
+            beanInstance = this.createInstanceByFactoryBean(beanDefinition);
+        }
+        return beanInstance;
+    }
+
+    private Object createInstanceByFactoryBean(BeanDefinition beanDefinition) {
         return null;
+    }
+
+    private Object createInstanceByStaticFactoryMethod(BeanDefinition beanDefinition) {
+
+        return null;
+    }
+
+    private Object createInstanceByConstructor(BeanDefinition beanDefinition) throws Exception {
+        //除了InstantiationException和IllegalAccessException异常外，为了避免相关的程序使用不当可能会存在某些危险的操作从而引发安全问题，这里需要捕获一下SecurityException
+        try {
+            return beanDefinition.getBeanClass().newInstance();
+        } catch (SecurityException exception) {
+            logger.error("create instance error beanDefinition:{}, exception:{}", beanDefinition, exception);
+            throw exception;
+        }
     }
 
 

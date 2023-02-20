@@ -404,7 +404,7 @@ private void init(BeanDefinition beanDefinition, Object instance) throws NoSuchM
 
 > 实现`BeanFactory`的`getBean`方法
 >
-> 这边要注意单例的实现:
+> 这里边要注意`单例的实现`:
 >
 > - 单例存储在哪里
 >   - 与`BeanDefinition`存储方式相同,定义一个私有成员变量`singletonBeanMap`来存储单例数据
@@ -415,5 +415,5 @@ private void init(BeanDefinition beanDefinition, Object instance) throws NoSuchM
 
 ```
 
-- 实现单例的要求
+- 
 - 实现容器关闭是执行单例的销毁操作
