@@ -11,6 +11,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -144,18 +145,51 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
         } else {
             beanInstance = this.createInstanceByFactoryBean(beanDefinition);
         }
+
+        //创建完实例执行初始化方法
+        this.init(beanDefinition, beanInstance);
+
         return beanInstance;
     }
 
-    private Object createInstanceByFactoryBean(BeanDefinition beanDefinition) {
-        return null;
+    /**
+     * 工厂bean方式创建实例
+     *
+     * @param beanDefinition
+     * @return java.lang.Object
+     * @author Rhys.Ni
+     * @date 2023/2/20
+     */
+    private Object createInstanceByFactoryBean(BeanDefinition beanDefinition) throws Exception {
+        //根据工厂bean名称创建实例
+        Object bean = this.doGetBean(beanDefinition.getFactoryBeanName());
+        //再通过工厂bean的类获取工厂Bean成员方法名称创建最终的Bean
+        Method method = bean.getClass().getMethod(beanDefinition.getFactoryBeanName(), null);
+        return method.invoke(bean, null);
     }
 
-    private Object createInstanceByStaticFactoryMethod(BeanDefinition beanDefinition) {
-
-        return null;
+    /**
+     * 静态工厂方法
+     *
+     * @param beanDefinition
+     * @return java.lang.Object
+     * @author Rhys.Ni
+     * @date 2023/2/20
+     */
+    private Object createInstanceByStaticFactoryMethod(BeanDefinition beanDefinition) throws Exception {
+        Class<?> beanClass = beanDefinition.getBeanClass();
+        Method method = beanClass.getMethod(beanDefinition.getFactoryMethodName(), null);
+        return method.invoke(beanClass, null);
     }
 
+    /**
+     * 构造函数创建实例
+     *
+     * @param beanDefinition
+     * @return java.lang.Object
+     * @author Rhys.Ni
+     * @date 2023/2/20
+     */
     private Object createInstanceByConstructor(BeanDefinition beanDefinition) throws Exception {
         //除了InstantiationException和IllegalAccessException异常外，为了避免相关的程序使用不当可能会存在某些危险的操作从而引发安全问题，这里需要捕获一下SecurityException
         try {
@@ -198,7 +232,22 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
      * @throws IOException if an I/O error occurs
      */
     @Override
-    public void close() throws IOException {
+    public void close() {
+        //执行单例的销毁方法
+        for (Map.Entry<String, BeanDefinition> entry : this.beanDefinitionMap.entrySet()) {
+            String beanName = entry.getKey();
+            BeanDefinition beanDefinition = entry.getValue();
 
+            if (beanDefinition.isSingleton() && StringUtils.isNotBlank(beanDefinition.getDestroyMethodName())) {
+                Object instance = this.singletonBeanMap.get(beanName);
+                try {
+                    //获取bean的销毁方法名通过invoke执行
+                    Method method = instance.getClass().getMethod(beanDefinition.getDestroyMethodName(), null);
+                    method.invoke(instance, null);
+                } catch (InvocationTargetException | NoSuchMethodException | IllegalAccessException e) {
+                    logger.error("bean destruction method named [" + beanName + "] failed to execute ! exception:{}", e);
+                }
+            }
+        }
     }
 }
