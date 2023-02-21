@@ -572,3 +572,9 @@ public void close() {
 }
 ```
 
+> 单例Bean实例化提前到初始化方法中
+
+
+
+> 至此，`DefaultBeanFactory`中还有
+
