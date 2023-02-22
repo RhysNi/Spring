@@ -572,9 +572,45 @@ public void close() {
 }
 ```
 
-> 单例Bean实例化提前到初始化方法中
+> - 所谓`单例`必然是只有一个对象，所以需要将单例Bean的实例化提前到初始化阶段，在系统启动的时候就去将单例的对象创建出来，避免在运行时调用`doGetBean`方法判断为单例再去执行创建
+> - 因此我们需要实现一个`PreBuildBeanFactory`，将单例对象的创建操作放到这个里面去实现
+> - 这种方案缺点就是增加了系统启动时的性能消耗
+> - 优点就是减少了系统运行时的性能消耗
+> - 因为系统启动的时候是`单线程`,提前创建单例也很好的解决了`getBean`的时候单例的保证,`双重检查`的时候也不会有问题了
+
+![image-20230222170836138](https://article.biliimg.com/bfs/article/1278df1be57738088174eec9d914699bb0cd6e45.png)
+
+```java
+public class PreBuildBeanFactory extends DefaultBeanFactory {
+    private static final Logger logger = LoggerFactory.getLogger(PreBuildBeanFactory.class);
+
+    /**
+     * <p>
+     * <b>提前实例化单例</b>
+     * </p >
+     *
+     * @throws Exception <span style="color:#ffcb6b;">异常类</span>
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/2/22
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+     */
+    public void instantiateSingleton() throws Exception {
+        synchronized (this.beanDefinitionMap) {
+            for (Map.Entry<String, BeanDefinition> entry : this.beanDefinitionMap.entrySet()) {
+                String beanName = entry.getKey();
+                BeanDefinition beanDefinition = entry.getValue();
+                //判断是否为单例
+                if (beanDefinition.isSingleton()) {
+                    //执行doGetBean进行单例对象的创建以及存储
+                    this.getBean(beanName);
+                }
+            }
+        }
+    }
+}
+```
+
+> 至此，`IoC`的一个`基础版本`已经算是实现，总的UML图如下：
 
 
-
-> 至此，`DefaultBeanFactory`中还有
 

@@ -21,9 +21,9 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, Closeable {
     private static final Logger logger = LoggerFactory.getLogger(DefaultBeanFactory.class);
 
-    private Map<String, BeanDefinition> beanDefinitionMap = new ConcurrentHashMap<>(256);
+    protected Map<String, BeanDefinition> beanDefinitionMap = new ConcurrentHashMap<>(256);
 
-    private Map<String, Object> singletonBeanMap = new ConcurrentHashMap<>(256);
+    protected Map<String, Object> singletonBeanMap = new ConcurrentHashMap<>(256);
 
     /**
      * 注册BeanDefinition
@@ -128,6 +128,18 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
     }
 
 
+    /**
+     * <p>
+     * <b>创建实例</b>
+     * </p >
+     *
+     * @param beanDefinition <span style="color:#e38b6b;">bean定义</span>
+     * @return <span style="color:#ffcb6b;"> java.lang.Object</span>
+     * @throws Exception <span style="color:#ffcb6b;">异常类</span>
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/2/22
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">N倪倪</a>
+     */
     private Object createInstance(BeanDefinition beanDefinition) throws Exception {
         //获取bean定义对应的类(类即类型)
         Class<?> beanClass = beanDefinition.getBeanClass();
