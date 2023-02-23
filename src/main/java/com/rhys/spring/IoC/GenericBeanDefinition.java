@@ -1,11 +1,30 @@
 package com.rhys.spring.IoC;
 
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.builder.EqualsBuilder;
+import org.apache.commons.lang.builder.HashCodeBuilder;
+
 /**
  * @author Rhys.Ni
  * @version 1.0
  * @date 2023/2/14 2:32 AM
  */
-public class GenericBeanDefinition implements BeanDefinition{
+public class GenericBeanDefinition implements BeanDefinition {
+
+    private Class<?> beanClass;
+
+    private String scope = SCOPE_SINGLETON;
+
+    private String factoryBeanName;
+
+    private String factoryMethodName;
+
+    private String initMethodName;
+
+    private String destoryMethodName;
+
+    private boolean primary;
+
     /**
      * 对外提供具体的Bean类
      *
@@ -15,7 +34,7 @@ public class GenericBeanDefinition implements BeanDefinition{
      */
     @Override
     public Class<?> getBeanClass() {
-        return null;
+        return this.beanClass;
     }
 
     /**
@@ -27,7 +46,7 @@ public class GenericBeanDefinition implements BeanDefinition{
      */
     @Override
     public String getFactoryBeanName() {
-        return null;
+        return this.factoryBeanName;
     }
 
     /**
@@ -39,7 +58,7 @@ public class GenericBeanDefinition implements BeanDefinition{
      */
     @Override
     public String getFactoryMethodName() {
-        return null;
+        return this.factoryMethodName;
     }
 
     /**
@@ -51,7 +70,7 @@ public class GenericBeanDefinition implements BeanDefinition{
      */
     @Override
     public String getInitMethodName() {
-        return null;
+        return this.initMethodName;
     }
 
     /**
@@ -63,7 +82,7 @@ public class GenericBeanDefinition implements BeanDefinition{
      */
     @Override
     public String getDestroyMethodName() {
-        return null;
+        return this.destoryMethodName;
     }
 
     /**
@@ -75,7 +94,7 @@ public class GenericBeanDefinition implements BeanDefinition{
      */
     @Override
     public String getScope() {
-        return null;
+        return this.scope;
     }
 
     /**
@@ -87,7 +106,7 @@ public class GenericBeanDefinition implements BeanDefinition{
      */
     @Override
     public boolean isSingleton() {
-        return false;
+        return SCOPE_SINGLETON.equals(this.scope);
     }
 
     /**
@@ -99,7 +118,7 @@ public class GenericBeanDefinition implements BeanDefinition{
      */
     @Override
     public boolean isPrototype() {
-        return false;
+        return SCOPE_PROTOTYPE.equals(this.scope);
     }
 
     /**
@@ -111,6 +130,89 @@ public class GenericBeanDefinition implements BeanDefinition{
      */
     @Override
     public boolean isPrimary() {
-        return false;
+        return this.primary;
     }
+
+
+    public void setBeanClass(Class<?> beanClass) {
+        this.beanClass = beanClass;
+    }
+
+    public void setScope(String scope) {
+        if (StringUtils.isNotBlank(scope)) {
+            this.scope = scope;
+        }
+    }
+
+    public void setFactoryBeanName(String factoryBeanName) {
+        this.factoryBeanName = factoryBeanName;
+    }
+
+    public void setFactoryMethodName(String factoryMethodName) {
+        this.factoryMethodName = factoryMethodName;
+    }
+
+    public void setInitMethodName(String initMethodName) {
+        this.initMethodName = initMethodName;
+    }
+
+    public void setDestoryMethodName(String destoryMethodName) {
+        this.destoryMethodName = destoryMethodName;
+    }
+
+    public void setPrimary(boolean primary) {
+        this.primary = primary;
+    }
+
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        GenericBeanDefinition that = (GenericBeanDefinition) o;
+
+        return new EqualsBuilder()
+                .append(primary, that.primary)
+                .append(beanClass, that.beanClass)
+                .append(scope, that.scope)
+                .append(factoryBeanName, that.factoryBeanName)
+                .append(factoryMethodName, that.factoryMethodName)
+                .append(initMethodName, that.initMethodName)
+                .append(destoryMethodName, that.destoryMethodName)
+                .isEquals();
+    }
+
+    @Override
+    public int hashCode() {
+        return new HashCodeBuilder(17, 37)
+                .append(beanClass)
+                .append(scope)
+                .append(factoryBeanName)
+                .append(factoryMethodName)
+                .append(initMethodName)
+                .append(destoryMethodName)
+                .append(primary)
+                .toHashCode();
+    }
+
+    @Override
+    public String toString() {
+        return "GenericBeanDefinition{" +
+                "beanClass=" + beanClass +
+                ", scope='" + scope + '\'' +
+                ", factoryBeanName='" + factoryBeanName + '\'' +
+                ", factoryMethodName='" + factoryMethodName + '\'' +
+                ", initMethodName='" + initMethodName + '\'' +
+                ", destoryMethodName='" + destoryMethodName + '\'' +
+                ", primary=" + primary +
+                '}';
+    }
+
+
 }
