@@ -825,4 +825,73 @@ public class PreBuildBeanFactory extends DefaultBeanFactory {
 
 > Bean除了标识唯一的名称外，还可以有很多个别名，别名具备以下几个特点
 >
-> - 
+> - 可以存在多个别名
+> - 可以在有别名的基础上，给别名起别名
+> - 别名需要保证唯一
+>
+> 因此，我们需要一个具备 `别名注册`相关功能的接口如下设计
+
+![image-20230228003858909](https://article.biliimg.com/bfs/article/e4a7f11e3d30a22f26dbdaae6cbdeeb5964e43de.png)
+
+```java
+package com.rhys.spring.IoC;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/2/27 1048 PM
+ */
+public interface AliasRegistry {
+    /**
+     * 别名注册
+     *
+     * @param name
+     * @param alias
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/2/27
+     */
+    void registerAlias(String name, String alias);
+
+    /**
+     * 是否为别名
+     *
+     * @param name
+     * @return boolean
+     * @author Rhys.Ni
+     * @date 2023/2/27
+     */
+    boolean isAlias(String name);
+
+    /**
+     * 获取所有别名
+     *
+     * @param name
+     * @return java.lang.String[]
+     * @author Rhys.Ni
+     * @date 2023/2/27
+     */
+    String[] getAliases(String name);
+
+    /**
+     * 获取原名
+     *
+     * @param name
+     * @return java.lang.String
+     * @author Rhys.Ni
+     * @date 2023/2/27
+     */
+    String getOriginalName(String name);
+
+    /**
+     * 别名注销
+     *
+     * @param alias
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/2/27
+     */
+    void removeAlias(String alias);
+}
+```
+

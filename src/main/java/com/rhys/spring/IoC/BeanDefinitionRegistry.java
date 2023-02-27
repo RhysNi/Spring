@@ -7,7 +7,7 @@ import com.rhys.spring.IoC.exception.BeanDefinitionRegistryException;
  * @version 1.0
  * @date 2023/2/7 12:09 AM
  */
-public interface BeanDefinitionRegistry {
+public interface BeanDefinitionRegistry extends AliasRegistry {
 
     /**
      * 注册BeanDefinition

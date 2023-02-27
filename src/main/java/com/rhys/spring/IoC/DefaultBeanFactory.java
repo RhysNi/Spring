@@ -1,5 +1,6 @@
 package com.rhys.spring.IoC;
 
+import com.rhys.spring.IoC.exception.AliasRegistryException;
 import com.rhys.spring.IoC.exception.BeanDefinitionRegistryException;
 import com.sun.org.slf4j.internal.Logger;
 import com.sun.org.slf4j.internal.LoggerFactory;
@@ -9,8 +10,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -24,6 +24,8 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
     protected Map<String, BeanDefinition> beanDefinitionMap = new ConcurrentHashMap<>(256);
 
     protected Map<String, Object> singletonBeanMap = new ConcurrentHashMap<>(256);
+
+    protected Map<String, String[]> aliasMap = new ConcurrentHashMap<>(256);
 
     /**
      * 注册BeanDefinition
@@ -260,5 +262,156 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
                 }
             }
         }
+    }
+
+    /**
+     * 别名注册
+     *
+     * @param beanName
+     * @param alias
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/2/27
+     */
+    @Override
+    public void registerAlias(String beanName, String alias) throws Exception {
+        Objects.requireNonNull(beanName, "beanName cannot be empty !");
+        Objects.requireNonNull(alias, "alias cannot be empty !");
+
+        //跟已有的所有别名进行对比，校验唯一性，存在重复的直接抛异常
+        if (this.checkAliasExists(alias)) {
+            throw new AliasRegistryException("alias: [" + alias + "] already exists !");
+        }
+
+        //bean没有起过别名则直接添加，否则获取已定义的别名数组进行操作
+        if (!aliasMap.containsKey(beanName)) {
+            //不存在重复的别名直接添加
+            String[] aliasArray = {alias};
+            aliasMap.put(beanName, aliasArray);
+        } else {
+            String[] aliasArray = aliasMap.get(beanName);
+            int size = aliasArray.length;
+
+            //将原数组所有数据拷贝至新数组中并且把新注册的别名添加到新数组最后
+            String[] newAliasArray = Arrays.copyOf(aliasArray, size + 1);
+            newAliasArray[size] = alias;
+
+            //重置该key的值
+            aliasMap.remove(beanName);
+            aliasMap.put(beanName, newAliasArray);
+        }
+    }
+
+    /**
+     * 是否为别名
+     *
+     * @param name
+     * @return boolean
+     * @author Rhys.Ni
+     * @date 2023/2/27
+     */
+    @Override
+    public boolean isAlias(String name) {
+        Objects.requireNonNull(name, "name cannot be empty !");
+
+        //如果key存在该名称，说明是别名的别名，一定存在
+        if (aliasMap.containsKey(name)) {
+            return true;
+        }
+        return checkAliasExists(name);
+    }
+
+    /**
+     * 获取所有别名
+     *
+     * @param name
+     * @return java.lang.String[]
+     * @author Rhys.Ni
+     * @date 2023/2/27
+     */
+    @Override
+    public String[] getAliases(String name) {
+        return aliasMap.get(name);
+    }
+
+    /**
+     * 获取原名
+     *
+     * @param name
+     * @return java.lang.String
+     * @author Rhys.Ni
+     * @date 2023/2/27
+     */
+    @Override
+    public String getOriginalName(String name) {
+        Objects.requireNonNull(name, "alias cannot be empty !");
+
+        //遍历aliasMap 找包含alias的key返回
+        String beanName = null;
+
+        for (Map.Entry<String, String[]> entry : this.aliasMap.entrySet()) {
+            String key = entry.getKey();
+            String[] value = entry.getValue();
+
+            for (String alias : value) {
+                if (alias.equals(name)) {
+                    beanName = key;
+                    break;
+                }
+            }
+        }
+        return beanName;
+    }
+
+    /**
+     * 别名注销
+     *
+     * @param alias
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/2/27
+     */
+    @Override
+    public void removeAlias(String alias) {
+        Objects.requireNonNull(alias, "alias cannot be empty !");
+
+        for (Map.Entry<String, String[]> entry : this.aliasMap.entrySet()) {
+            String key = entry.getKey();
+            List<String> list = Arrays.asList(entry.getValue());
+            for (String str : list) {
+                if (str.equals(alias)) {
+                    list.remove(str);
+                    //检查是否有别名的别名，一同删除
+                    if (aliasMap.containsKey(str)) {
+                        aliasMap.remove(str);
+                    }
+                }
+            }
+            String[] newArray = (String[]) list.toArray();
+
+            //重置该key的值
+            aliasMap.remove(key);
+            aliasMap.put(key, newArray);
+        }
+    }
+
+    /**
+     * 校验唯一性
+     *
+     * @param alias
+     * @return boolean
+     * @author Rhys.Ni
+     * @date 2023/2/28
+     */
+    private boolean checkAliasExists(String alias) {
+        for (Map.Entry<String, String[]> entry : aliasMap.entrySet()) {
+            String[] value = entry.getValue();
+            for (String str : value) {
+                if (str.equals(alias)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }
