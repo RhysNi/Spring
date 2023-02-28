@@ -25,7 +25,7 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
 
     private Map<String, Object> singletonBeanMap = new ConcurrentHashMap<>(256);
 
-    protected Map<String, String[]> aliasMap = new ConcurrentHashMap<>(256);
+    private Map<String, String[]> aliasMap = new ConcurrentHashMap<>(256);
 
     /**
      * 注册BeanDefinition
@@ -290,15 +290,13 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
             aliasMap.put(beanName, aliasArray);
         } else {
             String[] aliasArray = aliasMap.get(beanName);
-            int size = aliasArray.length;
 
             //将原数组所有数据拷贝至新数组中并且把新注册的别名添加到新数组最后
-            String[] newAliasArray = Arrays.copyOf(aliasArray, size + 1);
-            newAliasArray[size] = alias;
+            String[] newAliasArray = Arrays.copyOf(aliasArray, aliasArray.length + 1);
+            newAliasArray[aliasArray.length] = alias;
 
             //重置该key的值
-            aliasMap.remove(beanName);
-            aliasMap.put(beanName, newAliasArray);
+            aliasMap.replace(beanName, newAliasArray);
         }
     }
 
@@ -390,8 +388,7 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
             String[] newArray = (String[]) list.toArray();
 
             //重置该key的值
-            aliasMap.remove(key);
-            aliasMap.put(key, newArray);
+            aliasMap.replace(key, newArray);
         }
     }
 
