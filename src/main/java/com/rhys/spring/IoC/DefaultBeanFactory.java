@@ -23,7 +23,7 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
 
     protected Map<String, BeanDefinition> beanDefinitionMap = new ConcurrentHashMap<>(256);
 
-    protected Map<String, Object> singletonBeanMap = new ConcurrentHashMap<>(256);
+    private Map<String, Object> singletonBeanMap = new ConcurrentHashMap<>(256);
 
     protected Map<String, String[]> aliasMap = new ConcurrentHashMap<>(256);
 
