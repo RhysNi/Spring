@@ -20,12 +20,11 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, Closeable {
     private static final Logger logger = LoggerFactory.getLogger(DefaultBeanFactory.class);
-
     protected Map<String, BeanDefinition> beanDefinitionMap = new ConcurrentHashMap<>(256);
-
     private Map<String, Object> singletonBeanMap = new ConcurrentHashMap<>(256);
-
     private Map<String, String[]> aliasMap = new ConcurrentHashMap<>(256);
+
+    private Map<Class<?>, Set<String>> typeMap = new ConcurrentHashMap<>(256);
 
     /**
      * 注册BeanDefinition
@@ -95,6 +94,75 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
     @Override
     public Object getBean(String beanName) throws Exception {
         return this.doGetBean(beanName);
+    }
+
+    /**
+     * 根据beanName获取Type
+     *
+     * @param beanName
+     * @return java.lang.Class<?>
+     * @author Rhys.Ni
+     * @date 2023/3/1
+     */
+    @Override
+    public Class<?> getType(String beanName) throws Exception {
+        //根据beanName到beanDefinitionMap中获取对应的BeanDefinition
+        BeanDefinition beanDefinition = beanDefinitionMap.get(beanName);
+        //获取到具体的Type
+        Class<?> beanClass = beanDefinition.getBeanClass();
+        if (beanClass != null) {
+            //factoryMethodName不为空则通过静态工厂方法构造对象,否则通过构造方法创建实例（beanClass本身就是Type）
+            if (StringUtils.isNotBlank(beanDefinition.getFactoryMethodName())) {
+                //反射得到Method,最终回去Method返回类型
+                beanClass = beanClass.getDeclaredMethod(beanDefinition.getFactoryMethodName(), null).getReturnType();
+            }
+        }else {
+            //beanClass为空，需要获取到工厂Bean的beanClass
+            beanClass = this.getType(beanDefinition.getFactoryBeanName());
+            //再通过反射得到Method,最终得到工厂方法的返回类型
+            beanClass = beanClass.getDeclaredMethod(beanDefinition.getFactoryMethodName(), null).getReturnType();
+        }
+        return beanClass;
+    }
+
+    /**
+     * 根据Type获取bean实例
+     *
+     * @param c
+     * @return T
+     * @author Rhys.Ni
+     * @date 2023/3/1
+     */
+    @Override
+    public <T> T getBean(Class<T> c) throws Exception {
+        
+        return null;
+    }
+
+    /**
+     * 根据Type获取bean实例
+     *
+     * @param c
+     * @return java.util.Map<java.lang.String, T>
+     * @author Rhys.Ni
+     * @date 2023/3/1
+     */
+    @Override
+    public <T> Map<String, T> getBeanOfType(Class<T> c) throws Exception {
+        return null;
+    }
+
+    /**
+     * 根据Type获取bean集合
+     *
+     * @param c
+     * @return java.util.List<T>
+     * @author Rhys.Ni
+     * @date 2023/3/1
+     */
+    @Override
+    public <T> List<T> getBeanListOfType(Class<T> c) throws Exception {
+        return null;
     }
 
     private Object doGetBean(String beanName) throws Exception {

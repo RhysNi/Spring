@@ -250,6 +250,8 @@ public interface BeanDefinition {
 
 #### BeanDefinition默认实现
 
+![image-20230301020607759](https://article.biliimg.com/bfs/article/0b6a01b83fe9dbf1e8f51a14a37cbf72aaad5fc5.png)
+
 ```java
 public class GenericBeanDefinition implements BeanDefinition {
 
@@ -514,7 +516,7 @@ public interface BeanDefinitionRegistry {
 > - 已经设计好了`BeanFactory`、`BeanDefinition`、`BeanDefinitionRegistry`
 > - 现在需要实现一个默认的Bean工厂`DefaultBeanFactory`
 
-![image-20230216232054068](https://article.biliimg.com/bfs/article/9b0e12de3cf00da6eef52114913703018a8eee58.png)
+![image-20230301021118560](https://article.biliimg.com/bfs/article/f243aefcbd373e891781f846450f6f278d9eb473.png)
 
 > 实现`BeanDefinitionRegistry`,这里有以下几个注意点
 >
@@ -819,9 +821,7 @@ public class PreBuildBeanFactory extends DefaultBeanFactory {
 }
 ```
 
-### IoC增强功能
-
-#### Bean别名
+### BeanAlias别名实现
 
 > Bean除了标识唯一的名称外，还可以有很多个别名，别名具备以下几个特点
 >
@@ -832,6 +832,10 @@ public class PreBuildBeanFactory extends DefaultBeanFactory {
 > 因此，我们需要一个具备 `别名注册`相关功能的接口如下设计
 
 ![image-20230228003858909](https://article.biliimg.com/bfs/article/e4a7f11e3d30a22f26dbdaae6cbdeeb5964e43de.png)
+
+> 别名的别名大概如下
+
+![image-20230301024040172](https://article.biliimg.com/bfs/article/aa9757c476d5d817efeed702718bc1821aea2f2c.png)
 
 ```java
 package com.rhys.spring.IoC;
@@ -1047,3 +1051,95 @@ private boolean checkAliasExists(String alias) {
 }
 ```
 
+### BeanType获取Bean实例对象
+
+> 为了解决只能单一的通过`beanName`获取bean对象，中间需要进行强制类型转换，可能会出现异常情况，因此增加根据`Type`获取实例对象，`BeanFactory`修改设计如下
+>
+> - 提前把`Type`和`Bean`关系找出来缓存到`Map`中
+>   - 在`BeanFactory`中新增一个`getType`方法提供`根据beanName获取beanClass类型`的功能
+>   - 再到`DefaultBeanFactory`中添加一个`typeMap`容器，Map数据结构设计为`Map<Class<?>, Set<String>>`
+>   - 最后通过`buildTypeMap()`方法来构建`Type-Bean`之间的映射关系
+> - 因为`Class`可能对应`多个Type`,需要通过`Primary`来处理
+
+![image-20230301031436711](https://article.biliimg.com/bfs/article/75cb17fd1383a1ec9a67f02ae3cf8bb440758315.png)
+
+> `BeanFactory`增加功能方法
+
+```java
+package com.rhys.spring.IoC;
+
+import java.util.List;
+import java.util.Map;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/2/7 12:08 AM
+ */
+public interface BeanFactory {
+    /**
+     * 获取Bean实例
+     *
+     * @param beanName bean名称
+     * @return java.lang.Object
+     * @author Rhys.Ni
+     * @date 2023/2/16
+     */
+    Object getBean(String beanName) throws Exception;
+
+    /**
+     * 根据beanName获取Type
+     *
+     * @param beanName
+     * @return java.lang.Class<?>
+     * @author Rhys.Ni
+     * @date 2023/3/1
+     */
+    Class<?> getType(String beanName) throws Exception;
+
+    /**
+     * 根据Type获取bean实例
+     *
+     * @param c
+     * @return T
+     * @author Rhys.Ni
+     * @date 2023/3/1
+     */
+    <T> T getBean(Class<T> c) throws Exception;
+
+    /**
+     * 根据Type获取bean实例
+     *
+     * @param c
+     * @return java.util.Map<java.lang.String, T>
+     * @author Rhys.Ni
+     * @date 2023/3/1
+     */
+    <T> Map<String, T> getBeanOfType(Class<T> c) throws Exception;
+
+    /**
+     * 根据Type获取bean集合
+     *
+     * @param c
+     * @return java.util.List<T>
+     * @author Rhys.Ni
+     * @date 2023/3/1
+     */
+    <T> List<T> getBeanListOfType(Class<T> c) throws Exception;
+}
+```
+
+> 
+
+### 总结
+
+#### IoC核心类图总览
+
+![image-20230301032645220](https://article.biliimg.com/bfs/article/9574c691f6eadc197717c7fa48260169fc300276.png)
+
+#### 应用设计原则
+
+> - 抽象，行为抽象分类处理
+> - 继承，功能扩展
+> - 面向接口编程
+> - 单一职责原则
