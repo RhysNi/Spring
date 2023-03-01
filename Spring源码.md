@@ -1129,7 +1129,127 @@ public interface BeanFactory {
 }
 ```
 
-> 
+> `DefaultBeanFactory`中具体实现如下
+
+```java
+
+/**
+ * 根据beanName获取Type
+ *
+ * @param beanName
+ * @return java.lang.Class<?>
+ * @author Rhys.Ni
+ * @date 2023/3/1
+ */
+@Override
+public Class<?> getType(String beanName) throws Exception {
+    //根据beanName到beanDefinitionMap中获取对应的BeanDefinition
+    BeanDefinition beanDefinition = beanDefinitionMap.get(beanName);
+    //获取到具体的Type
+    Class<?> beanClass = beanDefinition.getBeanClass();
+    if (beanClass != null) {
+        //factoryMethodName不为空则通过静态工厂方法构造对象,否则通过构造方法创建实例（beanClass本身就是Type）
+        if (StringUtils.isNotBlank(beanDefinition.getFactoryMethodName())) {
+            //反射得到Method,最终回去Method返回类型
+            beanClass = beanClass.getDeclaredMethod(beanDefinition.getFactoryMethodName(), null).getReturnType();
+        }
+    } else {
+        //beanClass为空，需要获取到工厂Bean的beanClass
+        beanClass = this.getType(beanDefinition.getFactoryBeanName());
+        //再通过反射得到Method,最终得到工厂方法的返回类型
+        beanClass = beanClass.getDeclaredMethod(beanDefinition.getFactoryMethodName(), null).getReturnType();
+    }
+    return beanClass;
+}
+
+/**
+ * 根据Type获取bean实例
+ *
+ * @param c
+ * @return T
+ * @author Rhys.Ni
+ * @date 2023/3/1
+ */
+@Override
+public <T> T getBean(Class<T> c) throws Exception {
+
+    Set<String> beanNames = this.typeMap.get(c);
+    if (beanNames != null) {
+        //如果有只有一个直接获取Bean实例返回，否则遍历找出Primary
+        if (beanNames.size() == 1) {
+            return (T) this.getBean(beanNames.iterator().next());
+        } else {
+            BeanDefinition beanDefinition;
+            String primaryName = null;
+            StringBuilder beanNameStr = new StringBuilder();
+            // 获得所有对应的BeanDefinition
+            for (String beanName : beanNames) {
+                beanDefinition = this.getBeanDefinition(beanName);
+                if (beanDefinition != null && beanDefinition.isPrimary()) {
+                    //存在多个Primary的Bean实例抛异常
+                    if (primaryName != null) {
+                        throw new PrimaryException("Bean of type 【" + c + "】 has more than one Primary !");
+                    } else {
+                        primaryName = beanName;
+                    }
+                }
+                beanNameStr.append(" " + beanName);
+            }
+
+            //有primary则返回，没有则抛异常
+            if (primaryName != null) {
+                return (T) this.getBean(primaryName);
+            } else {
+                throw new PrimaryException("Multiple beans of type【" + c + "】exist but no Primary is found !");
+            }
+        }
+    }
+    return null;
+}
+
+/**
+ * 根据Type获取bean实例
+ *
+ * @param c
+ * @return java.util.Map<java.lang.String, T>
+ * @author Rhys.Ni
+ * @date 2023/3/1
+ */
+@Override
+public <T> Map<String, T> getBeanOfType(Class<T> c) throws Exception {
+    Set<String> beanNames = this.typeMap.get(c);
+    if (beanNames != null) {
+        HashMap<String, T> map = new HashMap<>();
+        for (String beanName : beanNames) {
+            map.put(beanName, (T) this.getBean(beanName));
+        }
+        return map;
+    }
+    return null;
+}
+
+/**
+ * 根据Type获取bean集合
+ *
+ * @param c
+ * @return java.util.List<T>
+ * @author Rhys.Ni
+ * @date 2023/3/1
+ */
+@Override
+public <T> List<T> getBeanListOfType(Class<T> c) throws Exception {
+    Set<String> beanNames = this.typeMap.get(c);
+    if (beanNames != null) {
+        List<T> beanList = new ArrayList<>();
+        for (String beanName : beanNames) {
+            beanList.add((T) this.getBean(beanName));
+        }
+        return beanList;
+    }
+    return null;
+}
+
+```
 
 ### 总结
 

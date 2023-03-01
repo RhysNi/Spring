@@ -2,6 +2,7 @@ package com.rhys.spring.IoC;
 
 import com.rhys.spring.IoC.exception.AliasRegistryException;
 import com.rhys.spring.IoC.exception.BeanDefinitionRegistryException;
+import com.rhys.spring.IoC.exception.PrimaryException;
 import com.sun.org.slf4j.internal.Logger;
 import com.sun.org.slf4j.internal.LoggerFactory;
 import org.apache.commons.lang.StringUtils;
@@ -116,7 +117,7 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
                 //反射得到Method,最终回去Method返回类型
                 beanClass = beanClass.getDeclaredMethod(beanDefinition.getFactoryMethodName(), null).getReturnType();
             }
-        }else {
+        } else {
             //beanClass为空，需要获取到工厂Bean的beanClass
             beanClass = this.getType(beanDefinition.getFactoryBeanName());
             //再通过反射得到Method,最终得到工厂方法的返回类型
@@ -135,7 +136,38 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
      */
     @Override
     public <T> T getBean(Class<T> c) throws Exception {
-        
+
+        Set<String> beanNames = this.typeMap.get(c);
+        if (beanNames != null) {
+            //如果有只有一个直接获取Bean实例返回，否则遍历找出Primary
+            if (beanNames.size() == 1) {
+                return (T) this.getBean(beanNames.iterator().next());
+            } else {
+                BeanDefinition beanDefinition;
+                String primaryName = null;
+                StringBuilder beanNameStr = new StringBuilder();
+                // 获得所有对应的BeanDefinition
+                for (String beanName : beanNames) {
+                    beanDefinition = this.getBeanDefinition(beanName);
+                    if (beanDefinition != null && beanDefinition.isPrimary()) {
+                        //存在多个Primary的Bean实例抛异常
+                        if (primaryName != null) {
+                            throw new PrimaryException("Bean of type 【" + c + "】 has more than one Primary !");
+                        } else {
+                            primaryName = beanName;
+                        }
+                    }
+                    beanNameStr.append(" " + beanName);
+                }
+
+                //有primary则返回，没有则抛异常
+                if (primaryName != null) {
+                    return (T) this.getBean(primaryName);
+                } else {
+                    throw new PrimaryException("Multiple beans of type【" + c + "】exist but no Primary is found !");
+                }
+            }
+        }
         return null;
     }
 
@@ -149,6 +181,14 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
      */
     @Override
     public <T> Map<String, T> getBeanOfType(Class<T> c) throws Exception {
+        Set<String> beanNames = this.typeMap.get(c);
+        if (beanNames != null) {
+            HashMap<String, T> map = new HashMap<>();
+            for (String beanName : beanNames) {
+                map.put(beanName, (T) this.getBean(beanName));
+            }
+            return map;
+        }
         return null;
     }
 
@@ -162,6 +202,14 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
      */
     @Override
     public <T> List<T> getBeanListOfType(Class<T> c) throws Exception {
+        Set<String> beanNames = this.typeMap.get(c);
+        if (beanNames != null) {
+            List<T> beanList = new ArrayList<>();
+            for (String beanName : beanNames) {
+                beanList.add((T) this.getBean(beanName));
+            }
+            return beanList;
+        }
         return null;
     }
 
