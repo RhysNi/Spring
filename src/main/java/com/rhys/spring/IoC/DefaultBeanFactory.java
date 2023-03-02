@@ -98,6 +98,88 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
     }
 
     /**
+     * 注册typeMap
+     *
+     * @param
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/3/3
+     */
+    public void registerTypeMap() throws Exception {
+        //获取type - name 映射关系，在所有的Bean定义信息都注册完成后执行
+        for (String beanName : this.beanDefinitionMap.keySet()) {
+            Class<?> type = this.getType(beanName);
+            //映射本类
+            this.registerTypeMap(beanName, type);
+            //映射父类
+            this.registerSuperClassTypeMap(beanName, type);
+            //映射接口
+            this.registerInterfaceTypeMap(beanName, type);
+        }
+    }
+
+    /**
+     * 注册typeMap 建立映射关系
+     *
+     * @param beanName
+     * @param type
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/3/3
+     */
+    private void registerTypeMap(String beanName, Class<?> type) {
+        Set<String> beanNames2Type = this.typeMap.get(type);
+        if (beanNames2Type != null) {
+            //重置beanName - type 映射关系
+            beanNames2Type = new HashSet<>();
+            this.typeMap.put(type, beanNames2Type);
+        }
+        beanNames2Type.add(beanName);
+    }
+
+    /**
+     * 递归注册父类实现的接口
+     *
+     * @param beanName
+     * @param type
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/3/3
+     */
+    private void registerSuperClassTypeMap(String beanName, Class<?> type) {
+        Class<?> superclass = type.getSuperclass();
+        if (superclass != null && !superclass.equals(Objects.class)) {
+            this.registerTypeMap(beanName, superclass);
+            //递归找父类
+            this.registerSuperClassTypeMap(beanName, superclass);
+            //找父类实现的接口
+            this.registerInterfaceTypeMap(beanName, superclass);
+        }
+    }
+
+
+    /**
+     * 递归注册父接口
+     *
+     * @param beanName
+     * @param type
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/3/3
+     */
+    private void registerInterfaceTypeMap(String beanName, Class<?> type) {
+        Class<?>[] interfaces = type.getInterfaces();
+        if (interfaces.length > 0) {
+            for (Class<?> anInterface : interfaces) {
+                this.registerTypeMap(beanName, anInterface);
+                //递归找父接口
+                this.registerInterfaceTypeMap(beanName, anInterface);
+            }
+        }
+    }
+
+
+    /**
      * 根据beanName获取Type
      *
      * @param beanName

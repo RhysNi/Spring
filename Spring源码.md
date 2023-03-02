@@ -1132,7 +1132,6 @@ public interface BeanFactory {
 > `DefaultBeanFactory`中具体实现如下
 
 ```java
-
 /**
  * 根据beanName获取Type
  *
@@ -1249,17 +1248,94 @@ public <T> List<T> getBeanListOfType(Class<T> c) throws Exception {
     return null;
 }
 
+
+/**
+ * 注册typeMap
+ * @author Rhys.Ni
+ * @date 2023/3/3
+ * @param
+ * @return void
+ */
+public void registerTypeMap() throws Exception {
+    //获取type - name 映射关系，在所有的Bean定义信息都注册完成后执行
+    for (String beanName : this.beanDefinitionMap.keySet()) {
+        Class<?> type = this.getType(beanName);
+        //映射本类
+        this.registerTypeMap(beanName, type);
+        //映射父类
+        this.registerSuperClassTypeMap(beanName, type);
+        //映射接口
+        this.registerInterfaceTypeMap(beanName, type);
+    }
+}
+
+/**
+ * 注册typeMap 建立映射关系
+ * @author Rhys.Ni
+ * @date 2023/3/3
+ * @param beanName
+ * @param type
+ * @return void
+ */
+private void registerTypeMap(String beanName, Class<?> type) {
+    Set<String> beanNames2Type = this.typeMap.get(type);
+    if (beanNames2Type != null) {
+        //重置beanName - type 映射关系
+        beanNames2Type = new HashSet<>();
+        this.typeMap.put(type, beanNames2Type);
+    }
+    beanNames2Type.add(beanName);
+}
+
+/**
+ * 递归注册父类实现的接口
+ * @author Rhys.Ni
+ * @date 2023/3/3
+ * @param beanName
+ * @param type
+ * @return void
+ */
+private void registerSuperClassTypeMap(String beanName, Class<?> type) {
+    Class<?> superclass = type.getSuperclass();
+    if (superclass != null && !superclass.equals(Objects.class)) {
+        this.registerTypeMap(beanName, superclass);
+        //递归找父类
+        this.registerSuperClassTypeMap(beanName, superclass);
+        //找父类实现的接口
+        this.registerInterfaceTypeMap(beanName, superclass);
+    }
+}
+
+
+/**
+ * 递归注册父接口
+ * @author Rhys.Ni
+ * @date 2023/3/3
+ * @param beanName
+ * @param type
+ * @return void
+ */
+private void registerInterfaceTypeMap(String beanName, Class<?> type) {
+    Class<?>[] interfaces = type.getInterfaces();
+    if (interfaces.length > 0) {
+        for (Class<?> anInterface : interfaces) {
+            this.registerTypeMap(beanName, anInterface);
+            //递归找父接口
+            this.registerInterfaceTypeMap(beanName, anInterface);
+        }
+    }
+}
 ```
 
 ### 总结
 
 #### IoC核心类图总览
 
+> -  BeanDefinition通过BeanDefinitionRegistry与BeanFactory关联起来
+> - BeanFactory可以通过BeanDefinitionRegistry去找到想要的BeanDefinition
+> - GenericBeanDefinition是BeanDefinition的默认实现
+> - BeanDefinitionRegistry通过AliasRegistry实现了别名的处理（别名判断逻辑后续补充）
+> - 最后在DeafultBeanFactory中进行BeanFactory、BeanDefinitionRegistry所有逻辑实现
+> - PreBuildBeanFactory实现了单例Bean实例化提前到启动阶段
+
 ![image-20230301032645220](https://article.biliimg.com/bfs/article/9574c691f6eadc197717c7fa48260169fc300276.png)
-
-#### 应用设计原则
-
-> - 抽象，行为抽象分类处理
-> - 继承，功能扩展
-> - 面向接口编程
-> - 单一职责原则
