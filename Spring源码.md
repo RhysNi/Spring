@@ -1339,3 +1339,277 @@ private void registerInterfaceTypeMap(String beanName, Class<?> type) {
 > - PreBuildBeanFactory实现了单例Bean实例化提前到启动阶段
 
 ![image-20230301032645220](https://article.biliimg.com/bfs/article/9574c691f6eadc197717c7fa48260169fc300276.png)
+
+## Dependency Injection
+
+### 什么是DI
+
+> - DI即为`依赖注入`，基于IoC所得到的Bean对象相关属性的赋值
+>
+> - 对象之间的依赖由容器在运行期间决定，即容器动态的将某个依赖注入到对象之中
+>
+> **依赖注入的本质是`给有参构造方法赋值`、`给属性赋值`**
+
+### 哪些地方会有依赖
+
+> - 构造参数依赖
+> - 属性依赖
+
+### 参数值|属性值有哪些
+
+> `直接值`和`Bean依赖`
+>
+> 现有TestA类和TestB类 如下
+>
+> - `TestA`类中`a`、`b`、`c`这类的属性赋值就属于直接值
+> - 然而`testB`属性对应的是`TestB`对象，这个对象的值（Bean实例）肯定是来自于`IoC`中,所以这就属于Bean依赖
+
+```java
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/3/8 12:21 AM
+ */
+public class TestA {
+    private String a;
+    private int b;
+    private char c;
+    private TestB testB;
+
+
+    public TestA(String a, int b, char c, TestB testB) {
+        this.a = a;
+        this.b = b;
+        this.c = c;
+        this.testB = testB;
+    }
+}
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/3/8 12:21 AM
+ */
+public class TestB {
+  //...
+}
+```
+
+### 构造注入
+
+> 在前面实现的`DefaultBeanFactory`中的`createInstanceByConstructor`是根据无参构造创建的一个实例
+>
+> - 当我们现在需要通过有参构造进行创建实例的时候就不适用了，需要做一下优化
+>   -  通过BeanDefinition获取到BeanClass之后
+>   - 通过反射的内容去找到有参的构造对象
+>   - 找到有参构造对象后结合传过来的实参得到对应的结果
+> - 那么构造器中所关联的实参则需要在`BeanDefinition`接口中新增一个`getConstructorArgumentValues() : List<?>`方法
+> - 同时在`GenericBeanDefinition`中实现`Getter/Setter`
+
+![image-20230308010714240](https://article.biliimg.com/bfs/article/f6ec3aa8f18acd71eec7fbce7f06ac1b80d9afda.png)
+
+```java
+package com.rhys.spring.IoC;
+
+import org.apache.commons.lang.StringUtils;
+
+import java.util.List;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/2/7 12:09 AM
+ */
+public interface BeanDefinition {
+
+    /**
+     * 获取构造参数对应值
+     * @author Rhys.Ni
+     * @date 2023/3/8
+     * @param
+     * @return java.util.List<?>
+     */
+    List<?> getConstructorArgumentValues();
+}
+
+```
+
+> 同时在`GenericBeanDefinition`中新增以下实现
+
+```java
+package com.rhys.spring.IoC;
+
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.builder.EqualsBuilder;
+import org.apache.commons.lang.builder.HashCodeBuilder;
+
+import java.util.List;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/2/14 2:32 AM
+ */
+public class GenericBeanDefinition implements BeanDefinition {
+
+    private List<?> constructorArgumentValues;
+
+
+    /**
+     * 获取构造参数对应值
+     *
+     * @return java.util.List<?>
+     * @author Rhys.Ni
+     * @date 2023/3/8
+     */
+    @Override
+    public List<?> getConstructorArgumentValues() {
+        return constructorArgumentValues;
+    }
+
+    public void setConstructorArgumentValues(List<?> constructorArgumentValues) {
+        this.constructorArgumentValues = constructorArgumentValues;
+    }
+}
+```
+
+> `DefaultBeanFactory`中修改`createInstanceByConstructor`如下
+
+```java
+/**
+ * 构造函数创建实例
+ *
+ * @param beanDefinition
+ * @return java.lang.Object
+ * @author Rhys.Ni
+ * @date 2023/2/20
+ */
+private Object createInstanceByConstructor(BeanDefinition beanDefinition) throws Exception {
+    //除了InstantiationException和IllegalAccessException异常外，为了避免相关的程序使用不当可能会存在某些危险的操作从而引发安全问题，这里需要捕获一下SecurityException
+    try {
+        //根据当前类所具有的有参构造方法，找到对应的构造对象
+        Object[] args = this.getConstructorArgumentValues(beanDefinition);
+        //推断调用哪个构造方法创建实例
+        return this.determineConstructor(beanDefinition, args).newInstance();
+    } catch (SecurityException exception) {
+        logger.error("create instance error beanDefinition:{}, exception:{}", beanDefinition, exception);
+        throw exception;
+    }
+}
+
+/**
+ * 获取合适的构造方法
+ *
+ * @param beanDefinition bean定义
+ * @param args 参数列表
+ * @return java.lang.reflect.Constructor<?>
+ * @author Rhys.Ni
+ * @date 2023/3/8
+ */
+private Constructor<?> determineConstructor(BeanDefinition beanDefinition, Object[] args) throws Exception {
+    Constructor<?> constructor = null;
+
+    //没有参数就提供无参构造方法
+    if (args == null) {
+        return beanDefinition.getBeanClass().getConstructor(null);
+    }
+
+    //先根据参数类型进行精确匹配
+    Class<?>[] paramTypes = new Class[args.length];
+    for (int i = 0; i < args.length; i++) {
+        paramTypes[i] = args[i].getClass();
+    }
+
+    try {
+        constructor = beanDefinition.getBeanClass().getConstructor(paramTypes);
+    } catch (Exception e) {
+        //无需处理该异常,让其能顺利进行后续逻辑
+    }
+
+    //没有精确匹配到构造方法，直接获取所有构造方法进行遍历
+    if (constructor == null) {
+        //outerCycle是为循环做的标记，因为这里涉及嵌套循环，如果不对外循环进行标记，那么在内循环中将不好控制continue与break的作用范围
+        outerCycle:
+        for (Constructor<?> cst : beanDefinition.getBeanClass().getConstructors()) {
+            Class<?>[] parameterTypes = cst.getParameterTypes();
+            //通过参数个数进行过滤
+            if (parameterTypes.length == args.length) {
+                //再对比形参类型与实参类型
+                for (int i = 0; i < parameterTypes.length; i++) {
+                    //isAssignableFrom：判断当前的Class对象所表示的类，是不是参数中传递的Class对象所表示的类的父类，超接口，或者是相同的类型。是则返回true，否则返回false
+                    if (!parameterTypes[i].isAssignableFrom(args[i].getClass())) {
+                        //只要有一个参数类型不匹配则跳过外循环的本轮循环
+                        continue outerCycle;
+                    }
+                }
+                //只要匹配上也直接结束外循环
+                constructor = cst;
+                break outerCycle;
+            }
+        }
+    }
+
+    //如果此时构造函数任然为空，则说明没有匹配上，直接抛异常
+    if (constructor == null) {
+        throw new Exception("there is no corresponding constructor for this bean definition:[" + beanDefinition + "]");
+    }
+    return constructor;
+}
+
+/**
+ * 获取参数列表
+ *
+ * @param beanDefinition bean定义
+ * @return java.lang.Object[]
+ * @author Rhys.Ni
+ * @date 2023/3/8
+ */
+private Object[] getConstructorArgumentValues(BeanDefinition beanDefinition) throws Exception {
+    List<?> argumentValues = beanDefinition.getConstructorArgumentValues();
+    if (CollectionUtils.isEmpty(argumentValues)) {
+        return null;
+    }
+
+    Object[] args = new Object[argumentValues.size()];
+    for (int i = 0; i < argumentValues.size(); i++) {
+        args[i] = getOneArgumentRealValue(argumentValues.get(i));
+    }
+
+    return args;
+}
+
+/**
+ * 获取真的参数值
+ *
+ * @param originalValue 原始值
+ * @return java.lang.Object
+ * @author Rhys.Ni
+ * @date 2023/3/8
+ */
+private Object getOneArgumentRealValue(Object originalValue) throws Exception {
+    //处理BeanReference,得到真正的Bean实例，从而获取真正的参数值
+    Object realValue = null;
+    if (originalValue != null) {
+        //根据originalValue的类型决定怎么找到真正的
+        if (originalValue instanceof BeanReference) {
+            BeanReference beanReference = (BeanReference) originalValue;
+            //获取bean的两种方式 根据beanName/beanType
+            if (StringUtils.isNotBlank(beanReference.getBeanName())) {
+                realValue = this.getBean(beanReference.getBeanName());
+            } else if (beanReference.getType() != null) {
+                realValue = this.getBean(beanReference.getType());
+            }
+        } else if (originalValue instanceof Object[]) {
+
+        } else if (originalValue instanceof Collection) {
+
+        } else if (originalValue instanceof Map) {
+
+        } else {
+            realValue = originalValue;
+        }
+    }
+    return realValue;
+}
+```
+

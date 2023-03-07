@@ -4,6 +4,8 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.apache.commons.lang.builder.HashCodeBuilder;
 
+import java.util.List;
+
 /**
  * @author Rhys.Ni
  * @version 1.0
@@ -24,6 +26,8 @@ public class GenericBeanDefinition implements BeanDefinition {
     private String destoryMethodName;
 
     private boolean primary;
+
+    private List<?> constructorArgumentValues;
 
     /**
      * 对外提供具体的Bean类
@@ -131,6 +135,22 @@ public class GenericBeanDefinition implements BeanDefinition {
     @Override
     public boolean isPrimary() {
         return this.primary;
+    }
+
+    /**
+     * 获取构造参数对应值
+     *
+     * @return java.util.List<?>
+     * @author Rhys.Ni
+     * @date 2023/3/8
+     */
+    @Override
+    public List<?> getConstructorArgumentValues() {
+        return constructorArgumentValues;
+    }
+
+    public void setConstructorArgumentValues(List<?> constructorArgumentValues) {
+        this.constructorArgumentValues = constructorArgumentValues;
     }
 
 

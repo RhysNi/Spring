@@ -2,6 +2,8 @@ package com.rhys.spring.IoC;
 
 import org.apache.commons.lang.StringUtils;
 
+import java.util.List;
+
 /**
  * @author Rhys.Ni
  * @version 1.0
@@ -93,6 +95,15 @@ public interface BeanDefinition {
      * @return boolean
      */
     boolean isPrimary();
+
+    /**
+     * 获取构造参数对应值
+     * @author Rhys.Ni
+     * @date 2023/3/8
+     * @param
+     * @return java.util.List<?>
+     */
+    List<?> getConstructorArgumentValues();
 
 
     /**
