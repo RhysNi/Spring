@@ -4,6 +4,8 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.apache.commons.lang.builder.HashCodeBuilder;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 import java.util.List;
 
 /**
@@ -28,6 +30,10 @@ public class GenericBeanDefinition implements BeanDefinition {
     private boolean primary;
 
     private List<?> constructorArgumentValues;
+
+    private Constructor<?> constructor;
+
+    private Method factoryMethod;
 
     /**
      * 对外提供具体的Bean类
@@ -148,6 +154,57 @@ public class GenericBeanDefinition implements BeanDefinition {
     public List<?> getConstructorArgumentValues() {
         return constructorArgumentValues;
     }
+
+    /**
+     * 用于BeanFactory获取工厂方法
+     *
+     * @return java.lang.reflect.Method
+     * @author Rhys.Ni
+     * @date 2023/3/13
+     */
+    @Override
+    public Method getFactoryMethod() {
+        return factoryMethod;
+    }
+
+    /**
+     * 用于BeanFactory获取具体的构造函数
+     *
+     * @return java.lang.reflect.Constructor<?>
+     * @author Rhys.Ni
+     * @date 2023/3/13
+     */
+    @Override
+    public Constructor<?> getConstructor() {
+        return constructor;
+    }
+
+    /**
+     * 用于BeanFactory设置具体的构造函数
+     *
+     * @param constructor 构造函数
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/3/13
+     */
+    @Override
+    public void setConstructor(Constructor<?> constructor) {
+        this.constructor = constructor;
+    }
+
+    /**
+     * 用于BeanFactory设置工厂方法
+     *
+     * @param factoryMethod 工厂方法
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/3/13
+     */
+    @Override
+    public void setFactoryMethod(Method factoryMethod) {
+        this.factoryMethod = factoryMethod;
+    }
+
 
     public void setConstructorArgumentValues(List<?> constructorArgumentValues) {
         this.constructorArgumentValues = constructorArgumentValues;

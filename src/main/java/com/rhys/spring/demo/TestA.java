@@ -6,16 +6,38 @@ package com.rhys.spring.demo;
  * @date 2023/3/8 12:21 AM
  */
 public class TestA {
-    private String a;
-    private int b;
-    private char c;
+    private String name;
     private TestB testB;
 
 
-    public TestA(String a, int b, char c, TestB testB) {
-        this.a = a;
-        this.b = b;
-        this.c = c;
+    public TestA(String name, TestB testB) {
+        super();
+        this.name = name;
         this.testB = testB;
+        System.out.println("调用了含有testB参数的构造方法");
+    }
+
+    public TestA(String name, TestBean testB) {
+        super();
+        this.name = name;
+        this.testB = testB;
+        System.out.println("调用了含有testBean参数的构造方法");
+    }
+
+
+    public TestA(TestB testB) {
+        this.testB = testB;
+    }
+
+    public void execute() {
+        System.out.println("aBean execute:" + this.name + "\n testB.name:" + this.testB.getName());
+    }
+
+    public void init() {
+        System.out.println("aBean 执行了init()方法");
+    }
+
+    public void destroy() {
+        System.out.println("aBean 执行了destroy()方法");
     }
 }

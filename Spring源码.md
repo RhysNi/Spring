@@ -1406,6 +1406,10 @@ public class TestB {
 > - 那么构造器中所关联的实参则需要在`BeanDefinition`接口中新增一个`getConstructorArgumentValues() : List<?>`方法
 > - 同时在`GenericBeanDefinition`中实现`Getter/Setter`
 
+#### 优化构造方法创建Bean
+
+##### BeanDefinition优化
+
 ![image-20230308010714240](https://article.biliimg.com/bfs/article/f6ec3aa8f18acd71eec7fbce7f06ac1b80d9afda.png)
 
 ```java
@@ -1473,7 +1477,61 @@ public class GenericBeanDefinition implements BeanDefinition {
 }
 ```
 
-> `DefaultBeanFactory`中修改`createInstanceByConstructor`如下
+##### BeanReference
+
+> 用来说明bean依赖的：也就是这个属性依赖哪个类型的Bean
+>
+> **如果是`List<TestB> testbList`这种`直接值是数组或者集合`等，同时`容器中的元素是Bean依赖`，针对这种情况元素值还是需要用BeanReference来处理的,只是BeanFactory在处理时需要遍历替换**
+
+![image-20230313020237840](https://article.biliimg.com/bfs/article/0de6c3a1be90a3d92d2598977af44df2f4c02185.png)
+
+```java
+
+/***
+ * 依赖注入中描述Bean依赖
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/3/8 3:27 AM
+ */
+public class BeanReference {
+    private String beanName;
+
+    private Class<?> type;
+
+    public String getBeanName() {
+        return beanName;
+    }
+
+    public void setBeanName(String beanName) {
+        this.beanName = beanName;
+    }
+
+    public Class<?> getType() {
+        return type;
+    }
+
+    public void setType(Class<?> type) {
+        this.type = type;
+    }
+
+    public BeanReference(String beanName) {
+        super();
+        this.beanName = beanName;
+    }
+
+    public BeanReference(Class<?> type) {
+        this.type = type;
+    }
+}
+```
+
+
+
+##### DefaultBeanFactory优化
+
+> `DefaultBeanFactory`中修改`createInstanceByConstructor`如下:
+>
+> 上一版构造方法创建是通过`无参构造方法`来处理的，我们需要兼容通过`有参构造方法`来实现。
 
 ```java
 /**
@@ -1490,7 +1548,7 @@ private Object createInstanceByConstructor(BeanDefinition beanDefinition) throws
         //根据当前类所具有的有参构造方法，找到对应的构造对象
         Object[] args = this.getConstructorArgumentValues(beanDefinition);
         //推断调用哪个构造方法创建实例
-        return this.determineConstructor(beanDefinition, args).newInstance();
+        return this.determineConstructor(beanDefinition, args).newInstance(args);
     } catch (SecurityException exception) {
         logger.error("create instance error beanDefinition:{}, exception:{}", beanDefinition, exception);
         throw exception;
@@ -1600,7 +1658,7 @@ private Object getOneArgumentRealValue(Object originalValue) throws Exception {
                 realValue = this.getBean(beanReference.getType());
             }
         } else if (originalValue instanceof Object[]) {
-
+						
         } else if (originalValue instanceof Collection) {
 
         } else if (originalValue instanceof Map) {
@@ -1610,6 +1668,317 @@ private Object getOneArgumentRealValue(Object originalValue) throws Exception {
         }
     }
     return realValue;
+}
+```
+
+##### 构造注入测试
+
+> 新建以下两个测试类
+
+```java
+public class TestA {
+    private String name;
+    private TestB testB;
+
+
+    public TestA(String name, TestB testB) {
+        this.name = name;
+        this.testB = testB;
+        System.out.println("调用了含有testB参数的构造方法");
+    }
+
+    public TestA(TestB testB) {
+        this.testB = testB;
+    }
+
+    public void execute() {
+        System.out.println("aBean execute:" + this.name + "\n testB.name:" + this.testB.getName());
+    }
+}
+```
+
+```java
+public class TestB {
+
+    private String name;
+
+    public TestB(String name) {
+        this.name = name;
+    }
+
+    public String getName() {
+        return name;
+    }
+}
+```
+
+> 新建测试类用JUnit模拟
+
+```java
+public class DITest {
+
+    private static PreBuildBeanFactory beanFactory = new PreBuildBeanFactory();
+
+    @Test
+    public void testDI() throws Exception {
+        GenericBeanDefinition beanDefinition = new GenericBeanDefinition();
+        //设置BeanClass
+        beanDefinition.setBeanClass(TestA.class);
+        //定义构造参数依赖
+        List<Object> args = new ArrayList<>();
+        args.add("testABean");
+        //Bean依赖通过BeanReference处理,这里的BeanName得和注册器中的BeanName一致，否则空指针
+        args.add(new BeanReference("bBean"));
+        //定义beanDefinition的构造参数列表
+        beanDefinition.setConstructorArgumentValues(args);
+        //注册BeanDefinition
+        beanFactory.registryBeanDefinition("aBean", beanDefinition);
+
+        //配置TestBBean
+        beanDefinition = new GenericBeanDefinition();
+        beanDefinition.setBeanClass(TestB.class);
+
+        args = new ArrayList<>();
+        args.add("testBBean");
+
+        beanDefinition.setConstructorArgumentValues(args);
+        beanFactory.registryBeanDefinition("bBean", beanDefinition);
+
+        beanFactory.instantiateSingleton();
+
+        TestA testA = (TestA) beanFactory.getBean("aBean");
+        testA.execute();
+    }
+}
+```
+
+#### 优化静态工厂方法和工厂成员方法创建Bean
+
+##### BeanDefinition优化
+
+> 新增如下代码
+
+```java
+/**
+ * 用于BeanFactory获取工厂方法
+ *
+ * @param
+ * @return java.lang.reflect.Method
+ * @author Rhys.Ni
+ * @date 2023/3/13
+ */
+Method getFactoryMethod();
+
+/**
+ * 用于BeanFactory获取具体的构造函数
+ * @author Rhys.Ni
+ * @date 2023/3/13
+ * @param
+ * @return java.lang.reflect.Constructor<?>
+ */
+Constructor<?> getConstructor();
+
+/**
+ * 用于BeanFactory设置具体的构造函数
+ * @author Rhys.Ni
+ * @date 2023/3/13
+ * @param constructor 构造函数
+ * @return void
+ */
+void setConstructor(Constructor<?> constructor);
+
+/**
+ * 用于BeanFactory设置工厂方法
+ * @author Rhys.Ni
+ * @date 2023/3/13
+ * @param factoryMethod 工厂方法
+ * @return void
+ */
+void setFactoryMethod(Method factoryMethod);
+```
+
+##### GenericBeanDefinition优化
+
+> 新增如下代码
+
+```java
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/2/14 2:32 AM
+ */
+public class GenericBeanDefinition implements BeanDefinition {
+
+    private Constructor<?> constructor;
+
+    private Method factoryMethod;
+
+
+        /**
+     * 用于BeanFactory获取工厂方法
+     *
+     * @return java.lang.reflect.Method
+     * @author Rhys.Ni
+     * @date 2023/3/13
+     */
+    @Override
+    public Method getFactoryMethod() {
+        return factoryMethod;
+    }
+
+    /**
+     * 用于BeanFactory获取具体的构造函数
+     *
+     * @return java.lang.reflect.Constructor<?>
+     * @author Rhys.Ni
+     * @date 2023/3/13
+     */
+    @Override
+    public Constructor<?> getConstructor() {
+        return constructor;
+    }
+
+    /**
+     * 用于BeanFactory设置具体的构造函数
+     *
+     * @param constructor 构造函数
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/3/13
+     */
+    @Override
+    public void setConstructor(Constructor<?> constructor) {
+        this.constructor = constructor;
+    }
+
+    /**
+     * 用于BeanFactory设置工厂方法
+     *
+     * @param factoryMethod 工厂方法
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/3/13
+     */
+    @Override
+    public void setFactoryMethod(Method factoryMethod) {
+        this.factoryMethod = factoryMethod;
+    }
+}
+```
+
+##### DefaultBeanFactory优化
+
+> 需要根据对应的构造参数来推断对应的工厂方法,优化`createInstanceByFactoryBean`和`createInstanceByStaticFactoryMethod`方法如下：
+
+```java
+/**
+ * 工厂bean方式创建实例
+ *
+ * @param beanDefinition
+ * @return java.lang.Object
+ * @author Rhys.Ni
+ * @date 2023/2/20
+ */
+private Object createInstanceByFactoryBean(BeanDefinition beanDefinition) throws Exception {
+    Object[] args = this.getConstructorArgumentValues(beanDefinition);
+    //匹配确定具体的工厂方法
+    Method method = this.determineFactoryMethod(beanDefinition, args, this.getType(beanDefinition.getFactoryBeanName()));
+    //根据工厂方法得到具体的工厂Bean
+    Object factoryBean = this.doGetBean(beanDefinition.getFactoryBeanName());
+    return method.invoke(factoryBean, null);
+}
+
+/**
+ * 静态工厂方法
+ *
+ * @param beanDefinition
+ * @return java.lang.Object
+ * @author Rhys.Ni
+ * @date 2023/2/20
+ */
+private Object createInstanceByStaticFactoryMethod(BeanDefinition beanDefinition) throws Exception {
+    Object[] args = this.getConstructorArgumentValues(beanDefinition);
+    //beanClass也作为type
+    Class<?> beanClass = beanDefinition.getBeanClass();
+    Method method = this.determineFactoryMethod(beanDefinition, args, beanClass);
+    return method.invoke(beanClass, args);
+}
+
+/**
+ * 确定使用那个工厂方法
+ * @author Rhys.Ni
+ * @date 2023/3/13
+ * @param beanDefinition Bean定义
+ * @param args 参数列表
+ * @param beanClass Bean类型
+ * @return java.lang.reflect.Method
+ */
+private Method determineFactoryMethod(BeanDefinition beanDefinition, Object[] args, Class<?> beanClass) throws Exception {
+
+    String methodName = beanDefinition.getFactoryMethodName();
+    //无参则直接使用无参构造方法
+    if (args == null) {
+        return beanClass.getMethod(methodName, null);
+    }
+
+    Method method = null;
+    //原型Bean从第二次开始获取Bean实例的时候就可以直接获取第一次缓存的构造方法
+    method = beanDefinition.getFactoryMethod();
+    if (method != null) {
+        return method;
+    }
+
+    //判定工厂方法的逻辑同构造方法的判定逻辑,先根据实参类型进行精确匹配查找
+    Class[] paramTypes = new Class[args.length];
+    for (int i = 0; i < args.length; i++) {
+        paramTypes[i] = args[i].getClass();
+    }
+
+    try {
+        method = beanClass.getMethod(methodName, paramTypes);
+    } catch (Exception e) {
+        //捕获异常并放行，防止异常影响后续遍历匹配
+    }
+
+    //精确匹配未找到
+    if (method == null) {
+        //获得所有方法，遍历，通过方法名、参数数量过滤，再比对形参类型与实参类型
+        outerCycle:
+        for (Method declaredMethod : beanClass.getDeclaredMethods()) {
+            //匹配方法名
+            if (!declaredMethod.getName().equals(methodName)) {
+                continue;
+            }
+
+            //方法名匹配上根据参数个数进行过滤
+            Class<?>[] parameterTypes = method.getParameterTypes();
+            if (parameterTypes.length == args.length) {
+                for (int i = 0; i < parameterTypes.length; i++) {
+                    //对比每个属性的类型,不匹配则直接对比下一个同名方法的参数
+                    if (!parameterTypes[i].isAssignableFrom(args[i].getClass())) {
+                        continue outerCycle;
+                    }
+                }
+
+                //方法名，参数列表全部吻合直接结束对比
+                method = declaredMethod;
+                break outerCycle;
+            }
+        }
+    }
+
+    //如果此时method仍为空则直接抛出异常
+    if (method == null) {
+        throw new Exception("static factory method does not exist in the beanDefinition :" + beanDefinition);
+    }
+
+    //第一次找到，如果是原型Bean直接缓存本次找到的静态工厂方法
+    //下次构造实例对象时,直接在BeanDefinition中获取该静态工厂方法
+    if (beanDefinition.isPrototype()){
+        beanDefinition.setFactoryMethod(method);
+    }
+
+    return method;
 }
 ```
 

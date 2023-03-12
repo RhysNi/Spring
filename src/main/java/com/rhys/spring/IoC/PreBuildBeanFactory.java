@@ -19,7 +19,6 @@ import java.util.Map;
  * @CopyRight :　<a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
  */
 public class PreBuildBeanFactory extends DefaultBeanFactory {
-    private static final Logger logger = LoggerFactory.getLogger(PreBuildBeanFactory.class);
 
     /**
      * <p>

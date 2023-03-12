@@ -4,6 +4,7 @@ import com.rhys.spring.DI.BeanReference;
 import com.rhys.spring.IoC.exception.AliasRegistryException;
 import com.rhys.spring.IoC.exception.BeanDefinitionRegistryException;
 import com.rhys.spring.IoC.exception.PrimaryException;
+import com.sun.org.apache.bcel.internal.generic.IF_ACMPEQ;
 import com.sun.org.slf4j.internal.Logger;
 import com.sun.org.slf4j.internal.LoggerFactory;
 import org.apache.commons.collections4.CollectionUtils;
@@ -375,11 +376,12 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
      * @date 2023/2/20
      */
     private Object createInstanceByFactoryBean(BeanDefinition beanDefinition) throws Exception {
-        //根据工厂bean名称创建实例
-        Object bean = this.doGetBean(beanDefinition.getFactoryBeanName());
-        //再通过工厂bean的类获取工厂Bean成员方法名称创建最终的Bean
-        Method method = bean.getClass().getMethod(beanDefinition.getFactoryBeanName(), null);
-        return method.invoke(bean, null);
+        Object[] args = this.getConstructorArgumentValues(beanDefinition);
+        //匹配确定具体的工厂方法
+        Method method = this.determineFactoryMethod(beanDefinition, args, this.getType(beanDefinition.getFactoryBeanName()));
+        //根据工厂方法得到具体的工厂Bean
+        Object factoryBean = this.doGetBean(beanDefinition.getFactoryBeanName());
+        return method.invoke(factoryBean, null);
     }
 
     /**
@@ -391,9 +393,89 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
      * @date 2023/2/20
      */
     private Object createInstanceByStaticFactoryMethod(BeanDefinition beanDefinition) throws Exception {
+        Object[] args = this.getConstructorArgumentValues(beanDefinition);
+        //beanClass也作为type
         Class<?> beanClass = beanDefinition.getBeanClass();
-        Method method = beanClass.getMethod(beanDefinition.getFactoryMethodName(), null);
-        return method.invoke(beanClass, null);
+        Method method = this.determineFactoryMethod(beanDefinition, args, beanClass);
+        return method.invoke(beanClass, args);
+    }
+
+    /**
+     * 确定使用那个工厂方法
+     *
+     * @param beanDefinition Bean定义
+     * @param args           参数列表
+     * @param beanClass      Bean类型
+     * @return java.lang.reflect.Method
+     * @author Rhys.Ni
+     * @date 2023/3/13
+     */
+    private Method determineFactoryMethod(BeanDefinition beanDefinition, Object[] args, Class<?> beanClass) throws Exception {
+
+        String methodName = beanDefinition.getFactoryMethodName();
+        //无参则直接使用无参构造方法
+        if (args == null) {
+            return beanClass.getMethod(methodName, null);
+        }
+
+        Method method = null;
+        //原型Bean从第二次开始获取Bean实例的时候就可以直接获取第一次缓存的构造方法
+        method = beanDefinition.getFactoryMethod();
+        if (method != null) {
+            return method;
+        }
+
+        //判定工厂方法的逻辑同构造方法的判定逻辑,先根据实参类型进行精确匹配查找
+        Class[] paramTypes = new Class[args.length];
+        for (int i = 0; i < args.length; i++) {
+            paramTypes[i] = args[i].getClass();
+        }
+
+        try {
+            method = beanClass.getMethod(methodName, paramTypes);
+        } catch (Exception e) {
+            //捕获异常并放行，防止异常影响后续遍历匹配
+        }
+
+        //精确匹配未找到
+        if (method == null) {
+            //获得所有方法，遍历，通过方法名、参数数量过滤，再比对形参类型与实参类型
+            outerCycle:
+            for (Method declaredMethod : beanClass.getDeclaredMethods()) {
+                //匹配方法名
+                if (!declaredMethod.getName().equals(methodName)) {
+                    continue;
+                }
+
+                //方法名匹配上根据参数个数进行过滤
+                Class<?>[] parameterTypes = method.getParameterTypes();
+                if (parameterTypes.length == args.length) {
+                    for (int i = 0; i < parameterTypes.length; i++) {
+                        //对比每个属性的类型,不匹配则直接对比下一个同名方法的参数
+                        if (!parameterTypes[i].isAssignableFrom(args[i].getClass())) {
+                            continue outerCycle;
+                        }
+                    }
+
+                    //方法名，参数列表全部吻合直接结束对比
+                    method = declaredMethod;
+                    break outerCycle;
+                }
+            }
+        }
+
+        //如果此时method仍为空则直接抛出异常
+        if (method == null) {
+            throw new Exception("static factory method does not exist in the beanDefinition :" + beanDefinition);
+        }
+
+        //第一次找到，如果是原型Bean直接缓存本次找到的工厂方法
+        //下次构造实例对象时,直接在BeanDefinition中获取该工厂方法
+        if (beanDefinition.isPrototype()) {
+            beanDefinition.setFactoryMethod(method);
+        }
+
+        return method;
     }
 
     /**
@@ -410,7 +492,7 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
             //根据当前类所具有的有参构造方法，找到对应的构造对象
             Object[] args = this.getConstructorArgumentValues(beanDefinition);
             //推断调用哪个构造方法创建实例
-            return this.determineConstructor(beanDefinition, args).newInstance();
+            return this.determineConstructor(beanDefinition, args).newInstance(args);
         } catch (SecurityException exception) {
             logger.error("create instance error beanDefinition:{}, exception:{}", beanDefinition, exception);
             throw exception;
