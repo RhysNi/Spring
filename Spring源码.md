@@ -1986,3 +1986,39 @@ private Method determineFactoryMethod(BeanDefinition beanDefinition, Object[] ar
 }
 ```
 
+#### 循环依赖
+
+> 如图：`TestA`创建需要依赖`TestB`,`TestB`创建需要依赖`TestC`,而`TestC`创建又需要依赖`TestA`，这样相互依赖最终没法完整创建导致失败
+
+![image-20230313035616533](https://article.biliimg.com/bfs/article/4da7dbddb30f5989d69a35440237677c671bfaa7.png)
+
+```JAVA
+public class TestA {
+
+    public static void main(String[] args) {
+        new TestB();
+    }
+}
+
+class TestB{
+    private TestC testc = new TestC();
+}
+
+class TestC{
+    private  TestB testB = new TestB();
+}
+```
+
+##### 解决方案
+
+> - 在创建一个Bean的时候记录下这个Bean
+>
+> - 当这个Bean创建完成后我们在移除这个Bean
+> - 然后在getBean的时候判断记录中是否有该Bean
+> - 如果有就判断为循环依赖，并抛出异常
+> - 数据结构我们可以通过Set集合来处理。
+
+```java
+
+```
+
