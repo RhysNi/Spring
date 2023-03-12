@@ -1408,6 +1408,8 @@ public class TestB {
 
 #### 优化构造方法创建Bean
 
+![image-20230313035207643](https://article.biliimg.com/bfs/article/f21aea0e23531a21eb73b6bad9dbd278f6d41722.png)
+
 ##### BeanDefinition优化
 
 ![image-20230308010714240](https://article.biliimg.com/bfs/article/f6ec3aa8f18acd71eec7fbce7f06ac1b80d9afda.png)
@@ -1753,6 +1755,8 @@ public class DITest {
 ```
 
 #### 优化静态工厂方法和工厂成员方法创建Bean
+
+![image-20230313035043512](https://article.biliimg.com/bfs/article/528f634b8b3d01b218cd2e5c9341f90049713125.png)
 
 ##### BeanDefinition优化
 
