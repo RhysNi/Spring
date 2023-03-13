@@ -28,8 +28,8 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
     protected Map<String, BeanDefinition> beanDefinitionMap = new ConcurrentHashMap<>(256);
     private Map<String, Object> singletonBeanMap = new ConcurrentHashMap<>(256);
     private Map<String, String[]> aliasMap = new ConcurrentHashMap<>(256);
-
     private Map<Class<?>, Set<String>> typeMap = new ConcurrentHashMap<>(256);
+    ThreadLocal<Set<String>> buildingBeansRecorder = new ThreadLocal<>();
 
     /**
      * 注册BeanDefinition
@@ -313,6 +313,21 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
         BeanDefinition beanDefinition = beanDefinitionMap.get(beanName);
         Objects.requireNonNull(beanDefinition, "beanDefinition named " + beanName + " is invalid !");
 
+        //检测循环依赖
+        Set<String> buildingBeans = buildingBeansRecorder.get();
+        if (buildingBeans == null) {
+            buildingBeans = new HashSet<>();
+            this.buildingBeansRecorder.set(buildingBeans);
+        }
+
+        //检测到记录不为空则进行模糊匹配,只要记录中包含本次要创建的Bean则直接抛出异常，认为循环依赖了
+        if (buildingBeans.contains(beanName)) {
+            throw new Exception(beanName + " bean has cyclic dependencies !");
+        }
+
+        //记录中不存在改Bean则添加记录
+        buildingBeans.add(beanName);
+
         if (beanDefinition.isSingleton()) {
             synchronized (this.singletonBeanMap) {
                 //双重检查，再次根据beanName从单例Map中尝试获取Bean实例，如果还是没有获取到再开始创建
@@ -328,6 +343,10 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
             //如果不要求为单例则直接创建,不用往单例BeanMap中存，所以不关心是否存在
             beanInstance = createInstance(beanDefinition);
         }
+
+        //创建实例完成后移除创建中记录
+        buildingBeans.remove(beanName);
+
         return beanInstance;
     }
 

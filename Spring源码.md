@@ -2017,16 +2017,56 @@ class TestC{
 }
 ```
 
-##### 解决方案
+##### DefaultBeanFactory优化
 
-> - 在创建一个Bean的时候记录下这个Bean
->
-> - 当这个Bean创建完成后我们在移除这个Bean
-> - 然后在getBean的时候判断记录中是否有该Bean
+> - 在创建一个Bean的时候记录一下这个Bean，代表这个Bean正在创建中
+>- 然后在getBean的时候判断记录中是否有该Bean
 > - 如果有就判断为循环依赖，并抛出异常
-> - 数据结构我们可以通过Set集合来处理。
+> - 记录器的数据结构用`Set<String>`
+> - 当这个Bean创建完成后我们再移除这个Bean的记录
+
+![image-20230313235240910](https://article.biliimg.com/bfs/article/3d691dd99585cdf115463d2e4a04bd3e350b91c8.png)
+
+![image-20230314001552873](https://article.biliimg.com/bfs/article/b9a602e1b5f25201308ea8d3b9bf37750227b688.png)
+
+###### doGetBean时检测循环依赖
+
+![image-20230314001659862](https://article.biliimg.com/bfs/article/044e011c69ab0d44c9c1ff6ea3d3c3141623f506.png)
 
 ```java
+private Object doGetBean(String beanName) throws Exception {
+	
+		//省略...
+  
+    //没获取到则根据BeanDefinition创建Bean实例并且存放到Map中
+    BeanDefinition beanDefinition = beanDefinitionMap.get(beanName);
+    Objects.requireNonNull(beanDefinition, "beanDefinition named " + beanName + " is invalid !");
 
+    //检测循环依赖
+    Set<String> buildingBeans = buildingBeansRecorder.get();
+    if (buildingBeans == null) {
+        buildingBeans = new HashSet<>();
+        this.buildingBeansRecorder.set(buildingBeans);
+    }
+
+    //检测到记录不为空则进行模糊匹配,只要记录中包含本次要创建的Bean则直接抛出异常，认为循环依赖了
+    if (buildingBeans.contains(beanName)) {
+        throw new Exception(beanName + " bean has cyclic dependencies !");
+    }
+
+    //记录中不存在改Bean则添加记录
+    buildingBeans.add(beanName);
+
+    if (beanDefinition.isSingleton()) {
+      
+ 		//省略...
+      
+    }
+
+    //创建实例完成后移除创建中记录
+    buildingBeans.remove(beanName);
+
+    return beanInstance;
+}
 ```
 
