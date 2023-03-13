@@ -1,5 +1,6 @@
 package com.rhys.spring.IoC;
 
+import com.rhys.spring.DI.PropertyValue;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.apache.commons.lang.builder.HashCodeBuilder;
@@ -34,6 +35,8 @@ public class GenericBeanDefinition implements BeanDefinition {
     private Constructor<?> constructor;
 
     private Method factoryMethod;
+
+    private List<PropertyValue> propertyValues;
 
     /**
      * 对外提供具体的Bean类
@@ -203,6 +206,23 @@ public class GenericBeanDefinition implements BeanDefinition {
     @Override
     public void setFactoryMethod(Method factoryMethod) {
         this.factoryMethod = factoryMethod;
+    }
+
+    /**
+     * 获取属性值
+     *
+     * @return java.util.List<com.rhys.spring.DI.PropertyValue>
+     * @author Rhys.Ni
+     * @date 2023/3/14
+     */
+    @Override
+    public List<PropertyValue> getPropertyValues() {
+        return this.propertyValues;
+    }
+
+
+    public void setPropertyValues(List<PropertyValue> propertyValues) {
+        this.propertyValues = propertyValues;
     }
 
 

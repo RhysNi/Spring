@@ -2000,6 +2000,9 @@ private Method determineFactoryMethod(BeanDefinition beanDefinition, Object[] ar
 
 ![image-20230313035616533](https://article.biliimg.com/bfs/article/4da7dbddb30f5989d69a35440237677c671bfaa7.png)
 
+> - **构造注入中是无法解决循环依赖问题的**
+> - **只能检测是否存在循环依赖然后抛出异常**
+
 ```JAVA
 public class TestA {
 
@@ -2027,46 +2030,352 @@ class TestC{
 
 ![image-20230313235240910](https://article.biliimg.com/bfs/article/3d691dd99585cdf115463d2e4a04bd3e350b91c8.png)
 
+> 这个记录器我们需要做成线程私有给每个线程之间数据做隔离
+
 ![image-20230314001552873](https://article.biliimg.com/bfs/article/b9a602e1b5f25201308ea8d3b9bf37750227b688.png)
 
-###### doGetBean时检测循环依赖
+> 如果不做线程私有的话则会出现以下情况：
+>
+> - 线程1 中想创建`TestA`实例，将记录添加到集合中
+> - 这时线程2中想创建`TestB`实例，将`testB`记录添加到集合中，
+> - 发现想要成功创建`TestB`要依赖`TestA`，则开始创建`TestA`
+> - 当去记录中判断是否存在beanName为`testA`的记录时发现已经存在了
+> - 这时`线程2`中的实例创建就会被判定为循环依赖，创建失败！
+> - 但是实际上两个线程中只是想各自创建一个Bean实例
+> - 由于这个记录表不是线程私有的，数据共享导致误判断成了循环依赖。
+
+![image-20230314011904664](https://article.biliimg.com/bfs/article/f056bbe851c1ab6aef9a7a7807f94cbc06a6abbe.png)
+
+> doGetBean时检测循环依赖
 
 ![image-20230314001659862](https://article.biliimg.com/bfs/article/044e011c69ab0d44c9c1ff6ea3d3c3141623f506.png)
 
 ```java
-private Object doGetBean(String beanName) throws Exception {
-	
-		//省略...
+public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, Closeable {
   
-    //没获取到则根据BeanDefinition创建Bean实例并且存放到Map中
-    BeanDefinition beanDefinition = beanDefinitionMap.get(beanName);
-    Objects.requireNonNull(beanDefinition, "beanDefinition named " + beanName + " is invalid !");
+  ThreadLocal<Set<String>> buildingBeansRecorder = new ThreadLocal<>();
+	
+  //省略...
+  
+  private Object doGetBean(String beanName) throws Exception {
 
-    //检测循环依赖
-    Set<String> buildingBeans = buildingBeansRecorder.get();
-    if (buildingBeans == null) {
-        buildingBeans = new HashSet<>();
-        this.buildingBeansRecorder.set(buildingBeans);
-    }
+      //省略...
 
-    //检测到记录不为空则进行模糊匹配,只要记录中包含本次要创建的Bean则直接抛出异常，认为循环依赖了
-    if (buildingBeans.contains(beanName)) {
-        throw new Exception(beanName + " bean has cyclic dependencies !");
-    }
+      //没获取到则根据BeanDefinition创建Bean实例并且存放到Map中
+      BeanDefinition beanDefinition = beanDefinitionMap.get(beanName);
+      Objects.requireNonNull(beanDefinition, "beanDefinition named " + beanName + " is invalid !");
 
-    //记录中不存在改Bean则添加记录
-    buildingBeans.add(beanName);
+      //检测循环依赖
+      Set<String> buildingBeans = buildingBeansRecorder.get();
+      if (buildingBeans == null) {
+          buildingBeans = new HashSet<>();
+          this.buildingBeansRecorder.set(buildingBeans);
+      }
 
-    if (beanDefinition.isSingleton()) {
-      
- 		//省略...
-      
-    }
+      //检测到记录不为空则进行模糊匹配,只要记录中包含本次要创建的Bean则直接抛出异常，认为循环依赖了
+      if (buildingBeans.contains(beanName)) {
+          throw new Exception(beanName + " bean has cyclic dependencies !");
+      }
 
-    //创建实例完成后移除创建中记录
-    buildingBeans.remove(beanName);
+      //记录中不存在改Bean则添加记录
+      buildingBeans.add(beanName);
 
-    return beanInstance;
+      if (beanDefinition.isSingleton()) {
+
+      //省略...
+
+      }
+
+      //创建实例完成后移除创建中记录
+      buildingBeans.remove(beanName);
+
+      return beanInstance;
+  }
+  
+  //省略...
+  
 }
 ```
 
+### 属性注入
+
+> 属性依赖就是某个属性依赖某个值
+
+```java
+public class A {
+    private String name;
+    private int age;
+    private char cup;
+    private List<B> bList;
+}
+```
+
+#### PropertyName
+
+> - 定义一个实体类 `PropertyValue`来记录相关的属性和值
+> - 获取实例对象后根据相关的配置来给对应的属性来赋值
+
+![image-20230314030055510](https://article.biliimg.com/bfs/article/6dd7f19d4ed2606dcfeb025448c01f030d44b5d2.png)
+
+```java
+package com.rhys.spring.DI;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/3/14 3:08 AM
+ */
+public class PropertyValue {
+    private String name;
+    private Object value;
+
+    public PropertyValue(String name, Object value) {
+        this.name = name;
+        this.value = value;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public Object getValue() {
+        return value;
+    }
+
+    public void setValue(Object value) {
+        this.value = value;
+    }
+}
+
+```
+
+#### BeanDefinition优化
+
+> 增加属性值获取
+
+![image-20230314031412122](https://article.biliimg.com/bfs/article/428df798a3be14a3f11576c62c99dfdebc1f47ae.png)
+
+```java
+package com.rhys.spring.IoC;
+
+import com.rhys.spring.DI.PropertyValue;
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.builder.EqualsBuilder;
+import org.apache.commons.lang.builder.HashCodeBuilder;
+
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
+import java.util.List;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/2/14 2:32 AM
+ */
+public class GenericBeanDefinition implements BeanDefinition {
+
+    private List<PropertyValue> propertyValues;
+
+
+    /**
+     * 获取属性值
+     *
+     * @return java.util.List<com.rhys.spring.DI.PropertyValue>
+     * @author Rhys.Ni
+     * @date 2023/3/14
+     */
+    @Override
+    public List<PropertyValue> getPropertyValues() {
+        return this.propertyValues;
+    }
+
+
+    public void setPropertyValues(List<PropertyValue> propertyValues) {
+        this.propertyValues = propertyValues;
+    }
+}
+```
+
+#### BeanFactory优化
+
+> 在得到bean实例后设置属性依赖
+
+```java
+private Object createInstance(BeanDefinition beanDefinition) throws Exception {
+		//省略...
+
+    //设置属性依赖
+    this.setPropertyDIValues(beanDefinition,beanInstance);
+
+    //创建完实例执行初始化方法
+    this.init(beanDefinition, beanInstance);
+
+    return beanInstance;
+}
+
+/**
+ * 反射设置属性依赖
+ * @author Rhys.Ni
+ * @date 2023/3/14
+ * @param beanDefinition bean定义
+ * @param beanInstance bean实例
+ * @return void
+ */
+private void setPropertyDIValues(BeanDefinition beanDefinition, Object beanInstance) throws Exception {
+    if (!CollectionUtils.isEmpty(beanDefinition.getPropertyValues())){
+        for (PropertyValue propertyValue : beanDefinition.getPropertyValues()) {
+            if (!StringUtils.isBlank(propertyValue.getName())) {
+                Class<?> clazz = beanInstance.getClass();
+                //根据属性名获取对应属性
+                Field field = clazz.getDeclaredField(propertyValue.getName());
+                //暴力访问
+                field.setAccessible(true);
+                //处理得到真正的bean引用值给bean实例属性
+                field.set(beanInstance,this.getOneArgumentRealValue(propertyValue.getValue()));
+            }
+        }
+    }
+}
+```
+
+#### 属性循环依赖
+
+> 属性循环依赖如下
+
+```java
+A a = new A();
+B b = new B();
+a.setB(b);
+b.setA(a);
+```
+
+##### 提前暴露构建中的bean实例
+
+> 若果单纯在IoC中是不好处理这种情况的，最终只会出现以下无限循环现象，始终得不到`a实例`的返回
+
+![image-20230314040731065](https://article.biliimg.com/bfs/article/07bea1ea4e4ec20e8448e48db35faf5b1a07a4bb.png)
+
+> 所以我们需要增加一个容器来缓存`正在构建的A对象`，然后再到创建`b实例`的时候去容器中获取提前缓存的`A对象`给到`B`
+>
+> 这样就能得到完整的`b实例`，从而得到完整的`a实例`返回，如下图
+
+![image-20230314041739272](https://article.biliimg.com/bfs/article/72b3be32e27ea295a5787e7ef884bc8ffe35e691.png)
+
+> 这里的容器数据结构定义为`ThreadLocal<Map<String, Object>> earlyExposeBuildingBeans`
+
+```java
+public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, Closeable {
+  
+  private ThreadLocal<Map<String, Object>> earlyExposeBuildingBeans = new ThreadLocal<>();
+
+	private Object doGetBean(String beanName) throws Exception {
+        //省略...
+    
+        //属性依赖时的循环依赖
+        //从提前暴露的bean实例缓存中获取bean实例
+        beanInstance = this.getFromEarlyExposeBuildingBeans(beanName);
+        if (beanInstance != null) {
+            return beanInstance;
+        }
+
+        //没获取到则根据BeanDefinition创建Bean实例并且存放到Map中
+        BeanDefinition beanDefinition = beanDefinitionMap.get(beanName);
+        Objects.requireNonNull(beanDefinition, "beanDefinition named " + beanName + " is invalid !");
+
+        //检测循环依赖
+        Set<String> buildingBeans = buildingBeansRecorder.get();
+        if (buildingBeans == null) {
+            buildingBeans = new HashSet<>();
+            this.buildingBeansRecorder.set(buildingBeans);
+        }
+
+        //省略...
+    
+        return beanInstance;
+    }
+
+
+    /**
+     * <p>
+     * <b>创建实例</b>
+     * </p >
+     *
+     * @param beanDefinition <span style="color:#e38b6b;">bean定义</span>
+     * @return <span style="color:#ffcb6b;"> java.lang.Object</span>
+     * @throws Exception <span style="color:#ffcb6b;">异常类</span>
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/2/22
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">N倪倪</a>
+     */
+    private Object createInstance(String beanName, BeanDefinition beanDefinition) throws Exception {
+        //省略...
+
+        //提前暴露bean实例
+        this.doEarlyExposeBuildingBeans(beanName, beanInstance);
+
+        //设置属性依赖
+        this.setPropertyDIValues(beanDefinition, beanInstance);
+
+        //创建完成后移除缓存中提前暴露的bean实例
+        this.removeEarlyExposeBuildingBeans(beanName);
+
+        //创建完实例执行初始化方法
+        this.init(beanDefinition, beanInstance);
+
+        return beanInstance;
+    }
+
+    /**
+     * 移除提前暴露的bean实例
+     *
+     * @param beanName
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/3/14
+     */
+    private void removeEarlyExposeBuildingBeans(String beanName) {
+        earlyExposeBuildingBeans.get().remove(beanName);
+    }
+
+    /**
+     * 提前暴露bean实例
+     *
+     * @param beanName
+     * @param beanInstance
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/3/14
+     */
+    private void doEarlyExposeBuildingBeans(String beanName, Object beanInstance) {
+        Map<String, Object> buildingBeansMap = earlyExposeBuildingBeans.get();
+        if (buildingBeansMap == null) {
+            buildingBeansMap = new HashMap<>();
+            earlyExposeBuildingBeans.set(buildingBeansMap);
+        }
+        buildingBeansMap.put(beanName, beanInstance);
+    }
+
+    /**
+     * 从缓存中获取
+     *
+     * @param beanName
+     * @return java.lang.Object
+     * @author Rhys.Ni
+     * @date 2023/3/14
+     */
+    private Object getFromEarlyExposeBuildingBeans(String beanName) {
+        Map<String, Object> buildingBeans = earlyExposeBuildingBeans.get();
+        return buildingBeans == null ? null : buildingBeans.get(beanName);
+    }
+}
+```
+
+### 总结
+
+#### IoC和DI类图总览
+
+![image-20230314043342726](https://article.biliimg.com/bfs/article/d8f11a2869f7945aecbf95145fda536a70265260.png)

@@ -1,5 +1,6 @@
 package com.rhys.spring.IoC;
 
+import com.rhys.spring.DI.PropertyValue;
 import org.apache.commons.lang.StringUtils;
 
 import java.lang.reflect.Constructor;
@@ -155,6 +156,15 @@ public interface BeanDefinition {
      * @date 2023/3/13
      */
     void setFactoryMethod(Method factoryMethod);
+
+    /**
+     * 获取属性值
+     * @author Rhys.Ni
+     * @date 2023/3/14
+     * @param
+     * @return java.util.List<com.rhys.spring.DI.PropertyValue>
+     */
+    List<PropertyValue> getPropertyValues();
 
     /**
      * 校验bean定义的合法性

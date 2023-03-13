@@ -1,10 +1,10 @@
 package com.rhys.spring.IoC;
 
 import com.rhys.spring.DI.BeanReference;
+import com.rhys.spring.DI.PropertyValue;
 import com.rhys.spring.IoC.exception.AliasRegistryException;
 import com.rhys.spring.IoC.exception.BeanDefinitionRegistryException;
 import com.rhys.spring.IoC.exception.PrimaryException;
-import com.sun.org.apache.bcel.internal.generic.IF_ACMPEQ;
 import com.sun.org.slf4j.internal.Logger;
 import com.sun.org.slf4j.internal.LoggerFactory;
 import org.apache.commons.collections4.CollectionUtils;
@@ -13,6 +13,7 @@ import org.apache.commons.lang.StringUtils;
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
@@ -29,7 +30,8 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
     private Map<String, Object> singletonBeanMap = new ConcurrentHashMap<>(256);
     private Map<String, String[]> aliasMap = new ConcurrentHashMap<>(256);
     private Map<Class<?>, Set<String>> typeMap = new ConcurrentHashMap<>(256);
-    ThreadLocal<Set<String>> buildingBeansRecorder = new ThreadLocal<>();
+    private ThreadLocal<Set<String>> buildingBeansRecorder = new ThreadLocal<>();
+    private ThreadLocal<Map<String, Object>> earlyExposeBuildingBeans = new ThreadLocal<>();
 
     /**
      * 注册BeanDefinition
@@ -309,6 +311,13 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
             return beanInstance;
         }
 
+        //属性依赖时的循环依赖
+        //从提前暴露的bean实例缓存中获取bean实例
+        beanInstance = this.getFromEarlyExposeBuildingBeans(beanName);
+        if (beanInstance != null) {
+            return beanInstance;
+        }
+
         //没获取到则根据BeanDefinition创建Bean实例并且存放到Map中
         BeanDefinition beanDefinition = beanDefinitionMap.get(beanName);
         Objects.requireNonNull(beanDefinition, "beanDefinition named " + beanName + " is invalid !");
@@ -334,14 +343,14 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
                 beanInstance = this.singletonBeanMap.get(beanName);
                 if (beanInstance == null) {
                     //创建实例
-                    beanInstance = createInstance(beanDefinition);
+                    beanInstance = createInstance(beanName, beanDefinition);
                     //存到singletonBeanMap中
                     singletonBeanMap.put(beanName, beanInstance);
                 }
             }
         } else {
             //如果不要求为单例则直接创建,不用往单例BeanMap中存，所以不关心是否存在
-            beanInstance = createInstance(beanDefinition);
+            beanInstance = createInstance(beanName, beanDefinition);
         }
 
         //创建实例完成后移除创建中记录
@@ -363,7 +372,7 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
      * @date 2023/2/22
      * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">N倪倪</a>
      */
-    private Object createInstance(BeanDefinition beanDefinition) throws Exception {
+    private Object createInstance(String beanName, BeanDefinition beanDefinition) throws Exception {
         //获取bean定义对应的类(类即类型)
         Class<?> beanClass = beanDefinition.getBeanClass();
         Object beanInstance = null;
@@ -380,10 +389,88 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
             beanInstance = this.createInstanceByFactoryBean(beanDefinition);
         }
 
+        //提前暴露bean实例
+        this.doEarlyExposeBuildingBeans(beanName, beanInstance);
+
+        //设置属性依赖
+        this.setPropertyDIValues(beanDefinition, beanInstance);
+
+        //创建完成后移除缓存中提前暴露的bean实例
+        this.removeEarlyExposeBuildingBeans(beanName);
+
         //创建完实例执行初始化方法
         this.init(beanDefinition, beanInstance);
 
         return beanInstance;
+    }
+
+    /**
+     * 移除提前暴露的bean实例
+     *
+     * @param beanName
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/3/14
+     */
+    private void removeEarlyExposeBuildingBeans(String beanName) {
+        earlyExposeBuildingBeans.get().remove(beanName);
+    }
+
+    /**
+     * 提前暴露bean实例
+     *
+     * @param beanName
+     * @param beanInstance
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/3/14
+     */
+    private void doEarlyExposeBuildingBeans(String beanName, Object beanInstance) {
+        Map<String, Object> buildingBeansMap = earlyExposeBuildingBeans.get();
+        if (buildingBeansMap == null) {
+            buildingBeansMap = new HashMap<>();
+            earlyExposeBuildingBeans.set(buildingBeansMap);
+        }
+        buildingBeansMap.put(beanName, beanInstance);
+    }
+
+    /**
+     * 从缓存中获取
+     *
+     * @param beanName
+     * @return java.lang.Object
+     * @author Rhys.Ni
+     * @date 2023/3/14
+     */
+    private Object getFromEarlyExposeBuildingBeans(String beanName) {
+        Map<String, Object> buildingBeans = earlyExposeBuildingBeans.get();
+        return buildingBeans == null ? null : buildingBeans.get(beanName);
+    }
+
+
+    /**
+     * 反射设置属性依赖
+     *
+     * @param beanDefinition bean定义
+     * @param beanInstance   bean实例
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/3/14
+     */
+    private void setPropertyDIValues(BeanDefinition beanDefinition, Object beanInstance) throws Exception {
+        if (!CollectionUtils.isEmpty(beanDefinition.getPropertyValues())) {
+            for (PropertyValue propertyValue : beanDefinition.getPropertyValues()) {
+                if (!StringUtils.isBlank(propertyValue.getName())) {
+                    Class<?> clazz = beanInstance.getClass();
+                    //根据属性名获取对应属性
+                    Field field = clazz.getDeclaredField(propertyValue.getName());
+                    //暴力访问
+                    field.setAccessible(true);
+                    //处理得到真正的bean引用值给bean实例属性
+                    field.set(beanInstance, this.getOneArgumentRealValue(propertyValue.getValue()));
+                }
+            }
+        }
     }
 
     /**
