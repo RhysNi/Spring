@@ -1986,6 +1986,14 @@ private Method determineFactoryMethod(BeanDefinition beanDefinition, Object[] ar
 }
 ```
 
+#### 缓存设计
+
+> 在以上代码中我们用到了构造器缓存以及工厂方法缓存
+>
+> 因为在创建实例的过程中要去推断使用有参构造还是无参构造，如果使用有参构造还需要根据参数列表去遍历精确匹配和模糊匹配，如果每次创建Bean实例都来遍历匹配一次显然性能是非常低的，工厂方法创建Bean实例推断工厂方法的时候逻辑也类似，因此对`Constructor`和`Method`增加了缓存，只要第一次创建过Bean实例，直接将对应的构造器或工厂方法set到BeanDefinition中，下次再创建的时候从BeanDefinition中就可以获取到直接使用了，不需要反复推断，从而达到提升性能的目的
+
+![](https://article.biliimg.com/bfs/article/0eb3fcfa87e6860c403ecbe95ffdc93c85461d48.png)
+
 #### 循环依赖
 
 > 如图：`TestA`创建需要依赖`TestB`,`TestB`创建需要依赖`TestC`,而`TestC`创建又需要依赖`TestA`，这样相互依赖最终没法完整创建导致失败

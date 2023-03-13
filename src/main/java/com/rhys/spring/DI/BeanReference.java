@@ -1,6 +1,6 @@
 package com.rhys.spring.DI;
 
-/***
+/**
  * 依赖注入中描述Bean依赖
  * @author Rhys.Ni
  * @version 1.0
