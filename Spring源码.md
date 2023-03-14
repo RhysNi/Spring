@@ -2379,3 +2379,54 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
 #### IoC和DI类图总览
 
 ![image-20230314043342726](https://article.biliimg.com/bfs/article/d8f11a2869f7945aecbf95145fda536a70265260.png)
+
+## Aspect Oriented Programming
+
+> **面向切面编程，在不改变类的代码的情况下，对类方法进行功能的增强**
+
+### Advice
+
+> 通知：进行功能增强
+
+#### Advice的特点
+
+> 可选时机，可选择在方法执行前、后、异常时进行功能的增强
+
+```java
+public void Test(){
+    //MethodBefore 方法前置增强
+    try{
+        //执行被增强的方法
+        String str = this.test();
+       	//AfterReturn 方法后置增强
+    }catch(Exception e){
+        //异常处理增强
+    }finally{
+        //After最终增强
+    }
+}
+```
+
+#### 前置增强
+
+> 在方法执行前进行增强，目的是对方法进行增强，应该需要的是方法相关的信息
+
+
+
+#### 后置增强
+
+#### 环绕通知
+
+#### 异常通知
+
+#### 最终通知
+
+### Pointcuts
+
+> **切入点：对类方法增强,可选择增强的方法**
+
+### Weaving
+
+> **织入：不改变原类的代码实现增强**
+
+![image-20230314141613895](https://article.biliimg.com/bfs/article/56cf9cbc6108f222f5b6f01737266eacc4cc15de.png)
