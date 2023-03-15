@@ -2384,13 +2384,37 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
 
 > **面向切面编程，在不改变类的代码的情况下，对类方法进行功能的增强**
 
+### 程序执行流程
+
+> - 在我们OOP中有一个待执行的正常的流程有`testA()、testB()、testC()`几个方法
+> - `Advice`就是我们需要增强的通知内容，对`testA`增强还是对`testB()`增强
+> - 具体想增强什么方法，是通过`PonintCut`根据`JoinPoints连接点`来定位到具体的方法的
+
+![image-20230315161934124](https://article.biliimg.com/bfs/article/b6e4a35109e15e2996c2ed54b2a0e5f089528d54.png)
+
 ### Advice
 
-> 通知：进行功能增强
+#### 面向接口编程
+
+> **通知：进行功能增强**
 
 #### Advice的特点
 
-> 可选时机，可选择在方法执行前、后、异常时进行功能的增强
+##### 用户性
+
+> 由用户提供增强的逻辑代码
+
+##### 变化性
+
+> 不同的增强需求会有不同的逻辑
+
+##### 多重性
+
+> 同一个切入点可以有多重增强
+
+##### 可选时机
+
+> 可选择在方法执行前、后、异常时进行功能的增强
 
 ```java
 public void Test(){
@@ -2407,19 +2431,242 @@ public void Test(){
 }
 ```
 
+### 5种通知分析
+
+> 由于通知是由用户提供，我们使用，主要是用户提供就突出了 `多变性`。
+>
+> - 为了我们能够更好的识别用户提供的东西以及让我们代码隔绝用户提供的`多变性`
+>
+> - 这里我们我们需要设计一个空的`Advice`接口
+> - 然后定义标准的接口方法，让用户来实现它，提供各种具体的增强内容
+
 #### 前置增强
 
 > 在方法执行前进行增强，目的是对方法进行增强，应该需要的是方法相关的信息
 
+##### 方法参数设计
 
+> * 方法本身 Method
+> * 方法所属的对象 Object
+> * 方法的参数 Object[]
+> * 方法的返回值 Object （可能没有）
+
+##### 方法返回值设计
+
+> **在方法执行前进行增强，不需要返回值**
+
+```java
+/**
+ * <p>
+ * <b>前置增强接口</b>
+ * </p >
+ *
+ * @author : RhysNi
+ * @version : v1.0
+ * @date : 2023/3/14 15:57
+ * @CopyRight :　<a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+ */
+public interface MethodBeforeAdvice extends Advice {
+
+    /**
+     * <p>
+     * <b>提供前置增强</b>
+     * </p >
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/3/14
+     * @param method <span style="color:#e38b6b;">被增强的方法</span>
+     * @param args <span style="color:#e38b6b;">方法参数</span>
+     * @param target <span style="color:#e38b6b;">方法所属对象</span>
+     * @throws Throwable <span style="color:#ffcb6b;">异常类</span>
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+     */
+    void before(Method method, Object[] args, Object target) throws Throwable;
+}
+```
 
 #### 后置增强
 
+> 在方法执行后进行增强
+
+##### 方法参数设计
+
+> * 方法本身 Method
+> * 方法所属的对象 Object
+> * 方法的参数 Object[]
+> * 方法的返回值 Object
+
+##### 方法返回值设计
+
+> 需要看是否允许在After中更改返回的结果，如果规定只可用、不可修改返回值就不需要返回值
+
+```java
+/**
+ * <p>
+ * <b>后置增强接口</b>
+ * </p >
+ *
+ * @author : RhysNi
+ * @version : v1.0
+ * @date : 2023/3/14 15:57
+ * @CopyRight :　<a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+ */
+public interface AfterReturnAdvice extends Advice {
+
+    /**
+     * <p>
+     * <b>提供后置增强</b>
+     * </p >
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/3/14
+     * @param returnValue <span style="color:#e38b6b;">返回值</span>
+     * @param method <span style="color:#e38b6b;">被增强的方法</span>
+     * @param args <span style="color:#e38b6b;">方法参数</span>
+     * @param target <span style="color:#e38b6b;">方法所属对象</span>
+     * @throws Throwable <span style="color:#ffcb6b;">异常类</span>
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+     */
+    void afterReturning(Object returnValue, Method method, Object[] args, Object target) throws Throwable;
+}
+```
+
 #### 环绕通知
+
+> 包裹方法进行增强
+
+##### 方法参数设计
+
+> * 方法本身 Method
+> * 方法所属的对象 Object
+> * 方法的参数 Object[]
+
+##### 方法返回值设计
+
+> 方法被它包裹，即方法将由它来执行，它需要返回方法的返回值
+
+```java
+/**
+ * <p>
+ * <b>环绕通知接口</b>
+ * </p >
+ *
+ * @author : RhysNi
+ * @version : v1.0
+ * @date : 2023/3/14 16:23
+ * @CopyRight :　<a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+ */
+public interface MethodInterceptorAdvice extends Advice {
+
+    /**
+     * <p>
+     * <b>对方法进行环绕（前置、后置）增强、异常处理增强，方法实现中需调用目标方法</b>
+     * </p >
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/3/14
+     * @param method <span style="color:#e38b6b;">被增强的方法</span>
+     * @param args <span style="color:#e38b6b;">方法参数</span>
+     * @param target <span style="color:#e38b6b;">方法所属对象</span>
+     * @return <span style="color:#ffcb6b;"> java.lang.Object</span>
+     * @throws Exception <span style="color:#ffcb6b;">异常类</span>
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+     */
+    Object invoke(Method method, Object[] args, Object target) throws Throwable;
+}
+```
 
 #### 异常通知
 
+> 异常通知增强：对方法执行时的异常，进行增强处理
+
+##### 方法参数设计
+
+> * 一定需要Exception
+> * 可能需要方法本身 Method
+> * 可能需要方法所属的对象 Object
+> * 可能需要方法的参数 Object[]
+
+##### 方法返回值设计
+
+> 需要看是否允许在After中更改返回的结果，如果规定只可用、不可修改返回值就不需要返回值
+
+```java
+/**
+ * <p>
+ * <b>异常通知接口</b>
+ * </p >
+ *
+ * @author : RhysNi
+ * @version : v1.0
+ * @date : 2023/3/14 16:33
+ * @CopyRight :　<a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+ */
+public interface ThrowsAdvice extends Advice{
+
+    /**
+     * <p>
+     * <b>提供异常处理增强</b>
+     * </p >
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/3/14
+     * @param method <span style="color:#e38b6b;">被增强的方法</span>
+     * @param args <span style="color:#e38b6b;">方法参数</span>
+     * @param target <span style="color:#e38b6b;">方法所属对象</span>
+     * @param e <span style="color:#e38b6b;">捕获的异常</span>
+     * @return <span style="color:#ffcb6b;"></span>
+     * @throws Throwable <span style="color:#ffcb6b;">异常类</span>
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+     */
+    void afterThrowing(Method method, Object[] args, Object target,Exception e) throws Throwable;
+}
+```
+
 #### 最终通知
+
+> 在方法执行后进行增强
+
+##### 方法参数设计
+
+> * 方法本身 Method
+> * 方法所属的对象 Object
+> * 方法的参数 Object[]
+> * 方法的返回值 Object （可能没有）
+
+##### 方法返回值设计
+
+> 需要看是否允许在After中更改返回的结果，如果规定只可用、不可修改返回值就不需要返回值
+
+```java
+/**
+ * <p>
+ * <b>最终通知接口</b>
+ * </p >
+ *
+ * @author : RhysNi
+ * @version : v1.0
+ * @date : 2023/3/14 15:57
+ * @CopyRight :　<a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+ */
+public interface AfterAdvice extends Advice {
+
+    /**
+     * <p>
+     * <b>提供最终增强</b>
+     * </p >
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/3/14
+     * @param returnValue <span style="color:#e38b6b;">返回值</span>
+     * @param method <span style="color:#e38b6b;">被增强的方法</span>
+     * @param args <span style="color:#e38b6b;">方法参数</span>
+     * @param target <span style="color:#e38b6b;">方法所属对象</span>
+     * @throws Throwable <span style="color:#ffcb6b;">异常类</span>
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+     */
+    void after(Object returnValue, Method method, Object[] args, Object target) throws Throwable;
+}
+```
+
+#### Advice设计
+
+![image-20230315163834524](https://article.biliimg.com/bfs/article/9eeb0f8d6ae213ded7de2185affcb80f1af781e6.png)
 
 ### Pointcuts
 
