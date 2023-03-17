@@ -2384,6 +2384,8 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
 
 > **面向切面编程，在不改变类的代码的情况下，对类方法进行功能的增强**
 
+![image-20230314141613895](https://article.biliimg.com/bfs/article/d08ee6719b89d5b0d492f40dd56fe984022d605d.png)
+
 ### 程序执行流程
 
 > - 在我们OOP中有一个待执行的正常的流程有`testA()、testB()、testC()`几个方法
@@ -2430,6 +2432,10 @@ public void Test(){
     }
 }
 ```
+
+### Advice设计
+
+![image-20230315163834524](https://article.biliimg.com/bfs/article/9eeb0f8d6ae213ded7de2185affcb80f1af781e6.png)
 
 ### 5种通知分析
 
@@ -2664,16 +2670,13 @@ public interface AfterAdvice extends Advice {
 }
 ```
 
-#### Advice设计
-
-![image-20230315163834524](https://article.biliimg.com/bfs/article/9eeb0f8d6ae213ded7de2185affcb80f1af781e6.png)
-
 ### Pointcuts
 
 > **切入点：对类方法增强,可选择增强的方法**
+
+
 
 ### Weaving
 
 > **织入：不改变原类的代码实现增强**
 
-![image-20230314141613895](https://article.biliimg.com/bfs/article/56cf9cbc6108f222f5b6f01737266eacc4cc15de.png)
