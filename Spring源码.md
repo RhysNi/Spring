@@ -2674,7 +2674,229 @@ public interface AfterAdvice extends Advice {
 
 > **切入点：对类方法增强,可选择增强的方法**
 
+#### pointcut特点
 
+##### 用户性
+
+> 由用户指定
+
+##### 变化性
+
+> 用户可灵活指定
+
+##### 多点性
+
+> 用户可以选择在多个点上进行增强
+
+#### 方法签名
+
+> - 为用户提供一个东西，让他们可以灵活地指定多个方法点，而且我们还能看懂
+>   - 指定哪些方法，如何来指定一个方法
+>   - 如果有重载的情况怎么办
+> - 因此我们需要的其实就是一个`完整的方法签名`如下：
+
+```java
+com.rhys.spring.aop.pointcut.TestA.test(TestB,Date)
+com.rhys.spring.aop.pointcut.TestA.test(TestB,TestC,Date)
+```
+
+#### 多点性和灵活性设计
+
+> - 可以选择某个包下的某个类的某个方法
+> - 可以选择某个包下的所有类中的所有方法
+> - 可以选择某个包下的所有类中的`test`关键字为前缀的方法
+> - 可以选择某个包下以`Service`关键字结尾的类中的`test`关键字为前缀的方法
+>
+> **因此，我们需要一种表达式能支持以上匹配的**
+
+#### 匹配规则
+
+##### 包名
+
+> 支持模糊匹配并且有父子特点
+
+##### 类名
+
+> 支持模糊匹配
+
+##### 方法名
+
+> 支持模糊匹配
+
+##### 参数类型
+
+> 支持多个参数
+
+#### [AspectJ表达式](http://www.eclipse.org/aspectj)
+
+> `切入点表达式`要匹配的对象就是`目标方法的方法名`,所以`execution表达式`中明显就是`方法的签名`
+>
+> - 访问权限类型：`modifiers-pattern`（可省略）
+> - 返回值类型：`ret-type-pattern`
+> - 全限定性类名：`declaring-type-pattern`（可省略）
+> - 方法名(参数名)：`name-pattern(param-pattern)`
+> - 抛出异常类型：`throws-pattern`（可省略）
+
+##### 符号含义
+
+| 符号 |                             含义                             |
+| :--: | :----------------------------------------------------------: |
+|  *   |                         0到多个字符                          |
+|  ..  | 方法参数中表示任意多个参数，用在包名后表示当前包及其子包路径 |
+|  +   |    用在类名后表示当前类及子类，用在接口后表示接口及实现类    |
+
+##### 表达式语法
+
+> 指定切入点为`任意公共方法`
+
+```java
+execution(public * *(..))
+```
+
+> 指定切入点为任何一个`以"test"开始`的方法
+
+```java
+execution(* test *(..))
+```
+
+> 指定切入点为定义在`service包里的任意类的任意方法`
+
+```java
+execution(* com.rhys.spring.service.*.*(..))
+```
+
+> 指定切入点为定义在`service包或者子包里的任意类的任意方法`,当".."出现在类名中时，后面必须跟"*"，表示包、子包下的所有类
+
+```java
+execution(* com.rhys.spring.service..*.*(..))
+```
+
+> 指定`只有一级包下的serivce子包下所有类(接口)中的所有方法`为切入点
+
+```java
+execution(* *.service.*.*(..))
+```
+
+> 指定`所有包下的serivce子包下所有类(接口)中的所有方法`为切入点
+
+```java
+execution(* *..service.*.*(..)) 
+```
+
+#### PointCut实现
+
+> 需要提供`匹配类`和`匹配方法`两个能力，如下设计以及实现
+
+![image-20230320041143650](https://article.biliimg.com/bfs/article/cc9734a68438b9db5fff5418ce2dd832f9261cf3.png)
+
+##### PointCut接口
+
+```java
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/3/20 4:03 AM
+ */
+public interface PointCut {
+    /**
+     * 匹配类
+     *
+     * @param targetClass 需要进行匹配的类型
+     * @return boolean
+     * @author Rhys.Ni
+     * @date 2023/3/20
+     */
+    boolean matchClass(Class<?> targetClass);
+
+    /**
+     * 匹配方法
+     *
+     * @param method      需要进行匹配的方法
+     * @param targetClass 需要进行匹配的类型
+     * @return boolean
+     * @author Rhys.Ni
+     * @date 2023/3/20
+     */
+    boolean matchMethod(Method method, Class<?> targetClass);
+}
+```
+
+##### AspectJ表达式实现PointCut
+
+> 引入`AspectJ`依赖
+
+```xml
+<dependency>
+    <groupId>org.aspectj</groupId>
+    <artifactId>aspectjweaver</artifactId>
+    <version>1.9.1</version>
+</dependency>
+```
+
+> 代码实现
+
+```java
+package com.rhys.spring.aop.pointcut;
+
+import org.aspectj.weaver.tools.PointcutExpression;
+import org.aspectj.weaver.tools.PointcutParser;
+import org.aspectj.weaver.tools.ShadowMatch;
+
+import java.lang.reflect.Method;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/3/20 4:07 AM
+ */
+public class AspectJExpressionPointCut implements PointCut {
+    /**
+     * 切点解析器
+     */
+    public static PointcutParser pointcutParser = PointcutParser.getPointcutParserSupportingAllPrimitivesAndUsingContextClassloaderForResolution();
+
+    private PointcutExpression pointcutExpression;
+
+    private String expression;
+
+    public AspectJExpressionPointCut(String expression) {
+        this.pointcutExpression = pointcutParser.parsePointcutExpression(expression);
+        this.expression = expression;
+    }
+
+    public String getExpression() {
+        return expression;
+    }
+
+    /**
+     * 匹配类
+     *
+     * @param targetClass 需要进行匹配的类型
+     * @return boolean
+     * @author Rhys.Ni
+     * @date 2023/3/20
+     */
+    @Override
+    public boolean matchClass(Class<?> targetClass) {
+        return pointcutExpression.couldMatchJoinPointsInType(targetClass);
+    }
+
+    /**
+     * 匹配方法
+     *
+     * @param method      需要进行匹配的方法
+     * @param targetClass 需要进行匹配的类型
+     * @return boolean
+     * @author Rhys.Ni
+     * @date 2023/3/20
+     */
+    @Override
+    public boolean matchMethod(Method method, Class<?> targetClass) {
+        ShadowMatch shadowMatch = pointcutExpression.matchesMethodExecution(method);
+        return shadowMatch.alwaysMatches();
+    }
+}
+```
 
 ### Weaving
 
