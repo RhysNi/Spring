@@ -2900,13 +2900,157 @@ public class AspectJExpressionPointCut implements PointCut {
 }
 ```
 
-#### Aspect切面
+> 实现类都是要生成Bean对象的，最终根据`advice`和`pointCut`组成切面
+>
+> - 根据`adviceBeanName`找到通知者
+> - 根据`expression`则可以找到表达式
+>
+> 因此我们需要一个通知者将这两块组合起来
 
-> 实现类都是要生成Bean对象的，最终根据`advice`和`pointCut`组成切面，根据`adviceBeanName`和`expression`则可以找到该切面
+![image-20230320231842921](https://article.biliimg.com/bfs/article/0621c193f7c2a0e379245adc9c597f76495286bd.png)
 
-![image-20230320171218660](https://article.biliimg.com/bfs/article/6a9a1604c633068e4509fd0ce9871ffe1ca6921d.png)
+#### Advisor设计
+
+> 为用户提供更简单的外观，`Advisor(通知者)`组合Advice和Pointcut
+>
+> - 当用户使用`AspectJ`表达式来指定切入点事就用`AspectJPointCutAdvisor`这个实现
+> - 只需要配置好该类的Bean，指定AdviceBeanName和expression即可
+
+![image-20230320234755303](https://article.biliimg.com/bfs/article/12c40a481c9f0324faf7358e9e13569ba57ff1bb.png)
+
+##### Advisor接口
+
+```java
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/3/20 11:45 PM
+ */
+public interface Advisor {
+    /**
+     * 获取通知类的Bean名
+     * @author Rhys.Ni
+     * @date 2023/3/20
+     * @param
+     * @return java.lang.String
+     */
+    String getAdviceBeanName();
+
+    /**
+     * 获取表达式
+     * @author Rhys.Ni
+     * @date 2023/3/20
+     * @param
+     * @return java.lang.String
+     */
+    String getExpression();
+}
+```
+
+##### PointCutAdvisor接口
+
+```java
+package com.rhys.spring.aop.advisor;
+
+import com.rhys.spring.aop.pointcut.PointCut;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/3/20 11:46 PM
+ */
+public interface PointCutAdvisor extends Advisor {
+    /**
+     * 获取切点
+     * @author Rhys.Ni
+     * @date 2023/3/20
+     * @param
+     * @return com.rhys.spring.aop.pointcut.PointCut
+     */
+    PointCut getPointCut();
+}
+```
+
+##### AspectJPointCutAdvisor实现
+
+```java
+package com.rhys.spring.aop.advisor;
+
+import com.rhys.spring.aop.pointcut.AspectJExpressionPointCut;
+import com.rhys.spring.aop.pointcut.PointCut;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/3/20 11:49 PM
+ */
+public class AspectJPointCutAdvisor implements PointCutAdvisor {
+
+    private String adviceBeanName;
+
+    private String expression;
+
+    private AspectJExpressionPointCut aspectJExpressionPointCut;
+
+
+    public AspectJPointCutAdvisor(String adviceBeanName, String expression) {
+        this.adviceBeanName = adviceBeanName;
+        this.expression = expression;
+        this.aspectJExpressionPointCut = new AspectJExpressionPointCut(this.expression);
+    }
+
+    /**
+     * 获取通知类的Bean名
+     *
+     * @return java.lang.String
+     * @author Rhys.Ni
+     * @date 2023/3/20
+     */
+    @Override
+    public String getAdviceBeanName() {
+        return this.adviceBeanName;
+    }
+
+    /**
+     * 获取表达式
+     *
+     * @return java.lang.String
+     * @author Rhys.Ni
+     * @date 2023/3/20
+     */
+    @Override
+    public String getExpression() {
+        return this.expression;
+    }
+
+    /**
+     * 获取切点
+     *
+     * @return com.rhys.spring.aop.pointcut.PointCut
+     * @author Rhys.Ni
+     * @date 2023/3/20
+     */
+    @Override
+    public PointCut getPointCut() {
+        return this.aspectJExpressionPointCut;
+    }
+}
+```
+
+##### 扩展
+
+> 不同的表达式扩展形式也有很多，如果用正则表达式则可以如下扩展
+
+![image.png](https://article.biliimg.com/bfs/article/dbed9f45c991eab8775e5599edaa529be7f06f7d.png)
+
+
+
+![image.png](https://article.biliimg.com/bfs/article/1cfcd7a2417ddb26f3588b73c8d05139a18c4b3c.png)
 
 ### Weaving
 
-> **织入：不改变原类的代码实现增强**
+> **织入：不改变原类的代码实现增强**，
+>
+> - 负责将用户提供的`Advice通知`增强到`Pointcuts的指定方法中`，将切入点所对应的方法（Bean对象）与切入点关联起来
 
