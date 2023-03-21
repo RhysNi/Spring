@@ -3053,4 +3053,27 @@ public class AspectJPointCutAdvisor implements PointCutAdvisor {
 > **织入：不改变原类的代码实现增强**，
 >
 > - 负责将用户提供的`Advice通知`增强到`Pointcuts的指定方法中`，将切入点所对应的方法（Bean对象）与切入点关联起来
+> - 创建Bean的时候，在Bean执行初始化后通过代理进行增强
+> - 需要对Bean类及方法挨个匹配用户配置的切面，如果匹配到切面则需要增强
+
+#### 织入设计
+
+> 根据AOP的使用流程
+>
+> - 用户负责配置切面
+> - 织入就在初始化后判断判断Bean是否需要增强
+> - 如果需要增强则通过代理进行增强，最后返回对象实例
+> - 不需要增强的话则直接返回原始对象实例
+
+![image-20230322013928793](https://article.biliimg.com/bfs/article/d548154d22b163b4976289ba5caaf455b1082159.png)
+
+> 如果我们直接把逻辑写在`BeanFactory`中的话，将来可能会有更多的处理逻辑加入到Bean的生成过程中，就会出现不断地修改`BeanFactory`中的代码
+
+
+
+> 因此我们需要考虑使用`观察者模式`，通过在各个节点加入扩展点，然后加入注册机制
+
+ 
+
+##### BeanPostProcessor
 
