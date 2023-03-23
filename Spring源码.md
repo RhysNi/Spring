@@ -3062,18 +3062,18 @@ public class AspectJPointCutAdvisor implements PointCutAdvisor {
 >
 > - 用户负责配置切面
 > - 织入就在初始化后判断判断Bean是否需要增强
-> - 如果需要增强则通过代理进行增强，最后返回对象实例
-> - 不需要增强的话则直接返回原始对象实例
+> - 如果需要增强则通过代理进行增强，最后返回`代理对象实例`
+> - 不需要增强的话则直接返回`原始对象实例`
 
 ![image-20230322013928793](https://article.biliimg.com/bfs/article/d548154d22b163b4976289ba5caaf455b1082159.png)
 
-> 如果我们直接把逻辑写在`BeanFactory`中的话，将来可能会有更多的处理逻辑加入到Bean的生成过程中，就会出现不断地修改`BeanFactory`中的代码
+> 根据下图Bean创建流程思考：如果我们直接把逻辑写在`BeanFactory`中的话，将来可能会有更多的处理逻辑加入到Bean的生成过程中，就会出现不断地修改`BeanFactory`中的代码
 
-
+![image.png](https://article.biliimg.com/bfs/article/2aa37940e54b3aaf6686e43b4d346d64ea4d47a1.png)
 
 > 因此我们需要考虑使用`观察者模式`，通过在各个节点加入扩展点，然后加入注册机制
 
- 
+ ![image-20230323144802004](https://article.biliimg.com/bfs/article/b042b6b1725dd7cfd3ba5d49b18b3f6be1e183e7.png)
 
 ##### BeanPostProcessor
 
