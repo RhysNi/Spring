@@ -3073,7 +3073,24 @@ public class AspectJPointCutAdvisor implements PointCutAdvisor {
 
 > 因此我们需要考虑使用`观察者模式`，通过在各个节点加入扩展点，然后加入注册机制
 
- ![image-20230323144802004](https://article.biliimg.com/bfs/article/b042b6b1725dd7cfd3ba5d49b18b3f6be1e183e7.png)
+##### 观察者模式
 
-##### BeanPostProcessor
+![image-20230323144802004](https://article.biliimg.com/bfs/article/b042b6b1725dd7cfd3ba5d49b18b3f6be1e183e7.png)
+
+##### BeanPostProcessor设计
+
+> 设计如下
+>
+> - 在`BeanFactory`中添加`registerBeanProcessor`方法，并在`DefaultBeanFactory`中进行实现
+> - 为了缓存注册成功的`beanPostProcessor`，在IOC中我们还得添加一个容器来接住，数据结构定义为`List<BeanPostProcessor> beanPostProcesssor`
+
+![image-20230324161932443](https://article.biliimg.com/bfs/article/bd7b8b9641a5214ec0c2c89b4281653cb4f5cfcd.png)
+
+##### BeanPostProcessor实现
+
+`BeanFactory`中实现
+
+```java
+
+```
 
