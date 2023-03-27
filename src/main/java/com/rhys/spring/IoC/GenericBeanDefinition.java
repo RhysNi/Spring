@@ -38,6 +38,12 @@ public class GenericBeanDefinition implements BeanDefinition {
 
     private List<PropertyValue> propertyValues;
 
+    public Object[] getRealConstructorArgumentValues() {
+        return this.realConstructorArgumentValues.get();
+    }
+
+    private ThreadLocal<Object[]> realConstructorArgumentValues = new ThreadLocal<>();
+
     /**
      * 对外提供具体的Bean类
      *
@@ -156,6 +162,19 @@ public class GenericBeanDefinition implements BeanDefinition {
     @Override
     public List<?> getConstructorArgumentValues() {
         return constructorArgumentValues;
+    }
+
+    /**
+     * 缓存构造参数
+     *
+     * @param values 构造参数
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/3/28
+     */
+    @Override
+    public void setConstructorArgumentRealValues(Object[] values) {
+        realConstructorArgumentValues.set(values);
     }
 
     /**

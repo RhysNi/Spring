@@ -118,6 +118,15 @@ public interface BeanDefinition {
     List<?> getConstructorArgumentValues();
 
     /**
+     * 缓存构造参数
+     * @author Rhys.Ni
+     * @date 2023/3/28
+     * @param values
+     * @return void
+     */
+    void setConstructorArgumentRealValues(Object[] values);
+
+    /**
      * 用于BeanFactory获取工厂方法
      *
      * @param

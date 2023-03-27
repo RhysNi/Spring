@@ -42,7 +42,7 @@ public interface BeanPostProcessor {
      * @date 2023/3/27
      * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
      */
-    default Object postProcessAfterInitialization(Object bean, String beanName) {
+    default Object postProcessAfterInitialization(Object bean, String beanName) throws Exception {
         return bean;
     }
 }

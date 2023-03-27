@@ -3071,24 +3071,27 @@ public class AspectJPointCutAdvisor implements PointCutAdvisor {
 
 ![image.png](https://article.biliimg.com/bfs/article/2aa37940e54b3aaf6686e43b4d346d64ea4d47a1.png)
 
+> 针对以下特殊情况：
+>
+> - 在初始化前后有些情况下需要做AOP增强，有些情况不需要做增强
+> - 增强的逻辑越来越多，不方便扩展
+>
 > 因此我们需要考虑使用`观察者模式`，通过在各个节点加入扩展点，然后加入注册机制
 
 ##### 观察者模式
 
 ![image-20230323144802004](https://article.biliimg.com/bfs/article/b042b6b1725dd7cfd3ba5d49b18b3f6be1e183e7.png)
 
-##### 感知接口设计
-
 
 
 ##### BeanPostProcessor设计
 
-> 设计如下
+> - 我们需要应用观察者模式添加一个`Bean的后置处理器(BeanPostProcessor)`
 >
-> - 在`BeanFactory`中添加`registerBeanProcessor`方法，并在`DefaultBeanFactory`中进行实现
+> - 我们想让这个`后置处理器`生效，想让`BeanFactory`知道，我们需要在`BeanFactory`中添加`registerBeanProcessor`注册器，并在`DefaultBeanFactory`中进行实现
 > - 为了缓存注册成功的`beanPostProcessor`，在IOC中我们还得添加一个容器来接住，数据结构定义为`List<BeanPostProcessor> beanPostProcesssor`
 
-![image-20230324161932443](https://article.biliimg.com/bfs/article/bd7b8b9641a5214ec0c2c89b4281653cb4f5cfcd.png)
+![image-20230328005651416](https://article.biliimg.com/bfs/article/4d6bcd710202266e0e8e4f1cb0c27d1504be7a3b.png)
 
 #### 织入实现
 
@@ -3146,6 +3149,247 @@ public interface BeanPostProcessor {
 
 ```
 
+> `AdvisorAutoProxyCreator`作为`BeanPostProcessor`的默认实现，首先自身也是Bean,要交给IoC管理的，
+>
+> 自身是无法感知到当前所处的环境，所以需要通过一个反向感知接口`BeanFactoryAware`去感知`AdvisorAutoProxyCreator`当前所处的状态
+
+##### 反向感知接口设计
+
+![image-20230328013956884](https://article.biliimg.com/bfs/article/746d5e5a8d473643e70600ca76f67842c7c85f43.png)
+
+###### Aware接口实现
+
+```java 
+/**
+ * <p>
+ * <b>反向感知顶层接口</b>
+ * </p >
+ *
+ * @author : RhysNi
+ * @version : v1.0
+ * @date : 2023/3/27 15:12
+ * @CopyRight :　<a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+ */
+public interface Aware {
+}                             
+```
+
+###### BeanFactoryAware接口实现
+
+```java
+package com.rhys.spring.IoC;
+
+/**
+ * <p>
+ * <b>Bean工厂反向感知接口</b>
+ * </p >
+ *
+ * @author : RhysNi
+ * @version : v1.0
+ * @date : 2023/3/27 10:34
+ * @CopyRight :　<a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+ */
+public interface BeanFactoryAware extends Aware {
+
+    /**
+     * <p>
+     * <b>设置Bean工厂</b>
+     * </p >
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/3/27
+     * @param beanFactory <span style="color:#e38b6b;">字段描述</span>
+     * @return <span style="color:#ffcb6b;"></span>
+     * @throws Exception <span style="color:#ffcb6b;">异常类</span>
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+     */
+    void setBeanFactory(BeanFactory beanFactory);
+}
+```
+
+##### AdvisorAutoProxyCreator实现
+
+```java
+package com.rhys.spring.aop.weaving;
+
+import com.rhys.spring.IoC.BeanFactory;
+import com.rhys.spring.IoC.BeanFactoryAware;
+import com.rhys.spring.IoC.BeanPostProcessor;
+import com.rhys.spring.aop.advisor.Advisor;
+import com.rhys.spring.aop.advisor.PointCutAdvisor;
+import com.rhys.spring.aop.pointcut.PointCut;
+import org.apache.commons.collections4.CollectionUtils;
+import org.springframework.util.ClassUtils;
+import org.springframework.util.ReflectionUtils;
+
+import java.lang.reflect.Method;
+import java.util.*;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/3/28 12:36 AM
+ */
+public class AdvisorAutoProxyCreator implements BeanPostProcessor, BeanFactoryAware {
+    private BeanFactory beanFactory;
+
+    private List<Advisor> advisorList;
+
+    private volatile boolean getAllAdvisors = false;
+
+    /**
+     * <p>
+     * <b>初始化之后执行</b>
+     * </p >
+     *
+     * @param bean     <span style="color:#e38b6b;">bean实例</span>
+     * @param beanName <span style="color:#e38b6b;">bean名称</span>
+     * @return <span style="color:#ffcb6b;"> java.lang.Object</span>
+     * @throws Exception <span style="color:#ffcb6b;">异常类</span>
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/3/27
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+     */
+    @Override
+    public Object postProcessAfterInitialization(Object bean, String beanName) throws Exception {
+        //先判断Bean是否需要增强
+        List<Advisor> advisors = getMatchedAdvisors(bean, beanName);
+
+        //如果有匹配的切面，则代表需要创建代理实例实现增强
+        if (CollectionUtils.isNotEmpty(advisors)) {
+            bean = this.createProxy(bean, beanName, advisors);
+        }
+
+        return bean;
+    }
+
+    /**
+     * 创建代理实例
+     *
+     * @param bean 原始bean实例
+     * @param beanName bean名称
+     * @param advisors 切面通知者
+     * @return java.lang.Object
+     * @author Rhys.Ni
+     * @date 2023/3/28
+     */
+    private Object createProxy(Object bean, String beanName, List<Advisor> advisors) {
+        //doProcess...
+        return bean;
+    }
+
+    /**
+     * 匹配通知者
+     *
+     * @param bean     bean实例
+     * @param beanName bean名称
+     * @return java.util.List<com.rhys.spring.aop.advisor.Advisor>
+     * @author Rhys.Ni
+     * @date 2023/3/28
+     */
+    private List<Advisor> getMatchedAdvisors(Object bean, String beanName) throws Exception {
+        //第一次执行时，先从BeanFactory中得到用户配置的所有通知者
+        if (!getAllAdvisors) {
+            synchronized (this) {
+                if (!getAllAdvisors) {
+                    //获取所有通知者并改getAllAdvisors状态为true代表获取过了所有通知者
+                    advisorList = this.beanFactory.getBeanListOfType(Advisor.class);
+                    getAllAdvisors = true;
+                }
+            }
+        }
+
+        //如果没有获取到切面配置直接返回
+        if (CollectionUtils.isEmpty(advisorList)) {
+            return null;
+        }
+
+        //存在切面配置则获取BeanClass和其对应的所有方法
+        Class<?> beanClass = bean.getClass();
+        List<Method> methods = this.getAllMethodForClass(beanClass);
+
+        //存放匹配上的通知者
+        List<Advisor> matchedAdvisors = new ArrayList<>();
+
+        //匹配Advisor
+        for (Advisor advisor : this.advisorList) {
+            if (advisor instanceof PointCutAdvisor && isPointCutMatchBean((PointCutAdvisor) advisor, beanClass, methods)) {
+                matchedAdvisors.add(advisor);
+            }
+        }
+
+        return matchedAdvisors;
+    }
+
+    /**
+     * 切入点Bean是否匹配
+     *
+     * @param advisor   切入点通知者
+     * @param beanClass bean类型
+     * @param methods   beanClass的本类以及所有实现接口的方法
+     * @return boolean
+     * @author Rhys.Ni
+     * @date 2023/3/28
+     */
+    private boolean isPointCutMatchBean(PointCutAdvisor advisor, Class<?> beanClass, List<Method> methods) {
+        PointCut pointCut = advisor.getPointCut();
+        //先判断类是否匹配
+        if (!pointCut.matchClass(beanClass)) {
+            return false;
+        }
+        //再判断方法是否匹配
+        for (Method method : methods) {
+            if (!pointCut.matchMethod(method, beanClass)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 获取类的所有方法
+     *
+     * @param beanClass bean类型
+     * @return java.util.List<java.lang.reflect.Method>
+     * @author Rhys.Ni
+     * @date 2023/3/28
+     */
+    private List<Method> getAllMethodForClass(Class<?> beanClass) {
+        //获取本类以及所实现接口的方法
+        LinkedList<Method> methods = new LinkedList<>();
+        //获取类的所有接口
+        Set<Class<?>> classes = new LinkedHashSet<>(ClassUtils.getAllInterfacesForClassAsSet(beanClass));
+        //将本类一并添加进集合中进行方法收集操作
+        classes.add(beanClass);
+        for (Class<?> clazz : classes) {
+            //获取所有已声明的方法
+            Method[] allDeclaredMethods = ReflectionUtils.getAllDeclaredMethods(clazz);
+            methods.addAll(Arrays.asList(allDeclaredMethods));
+        }
+        return methods;
+    }
+
+    /**
+     * <p>
+     * <b>设置Bean工厂</b>
+     * </p >
+     *
+     * @param beanFactory <span style="color:#e38b6b;">字段描述</span>
+     * @return <span style="color:#ffcb6b;"></span>
+     * @throws Exception <span style="color:#ffcb6b;">异常类</span>
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/3/27
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+     */
+    @Override
+    public void setBeanFactory(BeanFactory beanFactory) {
+        this.beanFactory = beanFactory;
+    }
+}
+
+```
+
+
+
 ##### BeanFactory接口优化
 
 > `BeanFactory`接口中继承`BeanPostProcessor`并添加`beanPostProcessor注册器
@@ -3161,7 +3405,7 @@ import java.util.Map;
  * @version 1.0
  * @date 2023/2/7 12:08 AM
  */
-public interface BeanFactory extends BeanPostProcessor {
+public interface BeanFactory{
 
     /**
      * <p>
@@ -3200,6 +3444,7 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
     @Override
     public void registerBeanPostProcessor(BeanPostProcessor beanPostProcessor) {
         this.beanPostProcessorList.add(beanPostProcessor);
+        //如果beanPostProcessor是BeanFactoryAware类型则将当前的Bean工厂对象给beanPostProcessor做绑定，这就是反向感知的一个过程
         if (beanPostProcessor instanceof BeanFactoryAware) {
             ((BeanFactoryAware) beanPostProcessor).setBeanFactory(this);
         }
@@ -3263,5 +3508,124 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
         return beanInstance;
     }
 }
+```
+
+##### 代理对象
+
+### AOP测试
+
+> 新增Advice实现类如下
+
+```java
+package com.rhys.spring.aop.impl;
+
+import com.rhys.spring.aop.advice.MethodBeforeAdvice;
+
+import java.lang.reflect.Method;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/3/28 3:42 AM
+ */
+public class MyBeforeAdvice implements MethodBeforeAdvice {
+    /**
+     * <p>
+     * <b>提供前置增强</b>
+     * </p >
+     *
+     * @param method <span style="color:#e38b6b;">被增强的方法</span>
+     * @param args   <span style="color:#e38b6b;">方法参数</span>
+     * @param target <span style="color:#e38b6b;">方法所属对象</span>
+     * @throws Throwable <span style="color:#ffcb6b;">异常类</span>
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/3/14
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+     */
+    @Override
+    public void before(Method method, Object[] args, Object target) throws Throwable {
+        System.out.println(this + "对" + target + "进行前置增强");
+    }
+}
+
+```
+
+```java
+package com.rhys.spring.aop.impl;
+
+import com.rhys.spring.aop.advice.AfterReturnAdvice;
+
+import java.lang.reflect.Method;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/3/28 3:44 AM
+ */
+public class MyAfterReturningAdvice implements AfterReturnAdvice {
+    /**
+     * <p>
+     * <b>提供后置增强</b>
+     * </p >
+     *
+     * @param returnValue <span style="color:#e38b6b;">返回值</span>
+     * @param method      <span style="color:#e38b6b;">被增强的方法</span>
+     * @param args        <span style="color:#e38b6b;">方法参数</span>
+     * @param target      <span style="color:#e38b6b;">方法所属对象</span>
+     * @throws Throwable <span style="color:#ffcb6b;">异常类</span>
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/3/14
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+     */
+    @Override
+    public void afterReturning(Object returnValue, Method method, Object[] args, Object target) throws Throwable {
+        System.out.println(this + "对" + target + "进行后置增强,返回值：" + returnValue);
+    }
+}
+
+```
+
+```java
+package com.rhys.spring.aop.impl;
+
+import com.rhys.spring.aop.advice.MethodInterceptorAdvice;
+
+import java.lang.reflect.Method;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/3/28 3:46 AM
+ */
+public class MyMethodInterceptor implements MethodInterceptorAdvice {
+    /**
+     * <p>
+     * <b>对方法进行环绕（前置、后置）增强、异常处理增强，方法实现中需调用目标方法</b>
+     * </p >
+     *
+     * @param method <span style="color:#e38b6b;">被增强的方法</span>
+     * @param args   <span style="color:#e38b6b;">方法参数</span>
+     * @param target <span style="color:#e38b6b;">方法所属对象</span>
+     * @return <span style="color:#ffcb6b;"> java.lang.Object</span>
+     * @throws Exception <span style="color:#ffcb6b;">异常类</span>
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/3/14
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+     */
+    @Override
+    public Object invoke(Method method, Object[] args, Object target) throws Throwable {
+        System.out.println(this + "对" + target + "进行环绕增强-方法前置增强");
+        Object o = method.invoke(target, args);
+        System.out.println(this + "对" + target + "进行环绕增强-方法后置增强");
+        return o;
+    }
+}
+
+```
+
+> 测试代码如下
+
+```java
+
 ```
 

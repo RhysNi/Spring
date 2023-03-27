@@ -8,7 +8,7 @@ import java.util.Map;
  * @version 1.0
  * @date 2023/2/7 12:08 AM
  */
-public interface BeanFactory extends BeanPostProcessor {
+public interface BeanFactory {
     /**
      * 获取Bean实例
      *
@@ -72,5 +72,4 @@ public interface BeanFactory extends BeanPostProcessor {
      * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
      */
     void registerBeanPostProcessor(BeanPostProcessor beanPostProcessor);
-
 }

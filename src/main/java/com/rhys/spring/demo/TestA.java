@@ -33,11 +33,11 @@ public class TestA {
         System.out.println("aBean execute:" + this.name + "\n testB.name:" + this.testB.getName());
     }
 
-    public void init() {
+    public void testInit() {
         System.out.println("aBean 执行了init()方法");
     }
 
-    public void destroy() {
+    public void testDestroy() {
         System.out.println("aBean 执行了destroy()方法");
     }
 }

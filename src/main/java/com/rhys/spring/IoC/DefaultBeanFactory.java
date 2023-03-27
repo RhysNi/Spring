@@ -49,6 +49,7 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
     @Override
     public void registerBeanPostProcessor(BeanPostProcessor beanPostProcessor) {
         this.beanPostProcessorList.add(beanPostProcessor);
+        //如果beanPostProcessor是BeanFactoryAware类型则将当前的Bean工厂对象给beanPostProcessor做绑定，这就是反向感知的一个过程
         if (beanPostProcessor instanceof BeanFactoryAware) {
             ((BeanFactoryAware) beanPostProcessor).setBeanFactory(this);
         }
@@ -156,7 +157,7 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
      */
     private void registerTypeMap(String beanName, Class<?> type) {
         Set<String> beanNames2Type = this.typeMap.get(type);
-        if (beanNames2Type != null) {
+        if (beanNames2Type == null) {
             //重置beanName - type 映射关系
             beanNames2Type = new HashSet<>();
             this.typeMap.put(type, beanNames2Type);
@@ -465,7 +466,7 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
      * @date 2023/3/27
      * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
      */
-    private Object applyPostProcessAfterInitialization(Object beanInstance, String beanName) {
+    private Object applyPostProcessAfterInitialization(Object beanInstance, String beanName) throws Exception {
         for (BeanPostProcessor beanPostProcessor : beanPostProcessorList) {
             beanInstance = beanPostProcessor.postProcessAfterInitialization(beanInstance, beanName);
         }
@@ -665,6 +666,8 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
         try {
             //根据当前类所具有的有参构造方法，找到对应的构造对象
             Object[] args = this.getConstructorArgumentValues(beanDefinition);
+            //缓存构造参数，供后面需要这些参数的地方使用
+            beanDefinition.setConstructorArgumentRealValues(args);
             //推断调用哪个构造方法创建实例
             return this.determineConstructor(beanDefinition, args).newInstance(args);
         } catch (SecurityException exception) {
