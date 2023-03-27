@@ -8,7 +8,7 @@ import java.util.Map;
  * @version 1.0
  * @date 2023/2/7 12:08 AM
  */
-public interface BeanFactory {
+public interface BeanFactory extends BeanPostProcessor {
     /**
      * 获取Bean实例
      *
@@ -58,4 +58,19 @@ public interface BeanFactory {
      * @date 2023/3/1
      */
     <T> List<T> getBeanListOfType(Class<T> c) throws Exception;
+
+    /**
+     * <p>
+     * <b>beanPostProcessor注册器</b>
+     * </p >
+     *
+     * @param beanPostProcessor <span style="color:#e38b6b;">bean执行器</span>
+     * @return <span style="color:#ffcb6b;"></span>
+     * @throws Exception <span style="color:#ffcb6b;">异常类</span>
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/3/27
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+     */
+    void registerBeanPostProcessor(BeanPostProcessor beanPostProcessor);
+
 }

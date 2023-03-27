@@ -3077,6 +3077,10 @@ public class AspectJPointCutAdvisor implements PointCutAdvisor {
 
 ![image-20230323144802004](https://article.biliimg.com/bfs/article/b042b6b1725dd7cfd3ba5d49b18b3f6be1e183e7.png)
 
+##### 感知接口设计
+
+
+
 ##### BeanPostProcessor设计
 
 > 设计如下
@@ -3086,11 +3090,178 @@ public class AspectJPointCutAdvisor implements PointCutAdvisor {
 
 ![image-20230324161932443](https://article.biliimg.com/bfs/article/bd7b8b9641a5214ec0c2c89b4281653cb4f5cfcd.png)
 
-##### BeanPostProcessor实现
+#### 织入实现
 
-`BeanFactory`中实现
+##### BeanPostProcessor接口
 
 ```java
+package com.rhys.spring.IoC;
 
+/**
+ * <p>
+ * <b>初始化之前和初始化之后要执行的方法</b>
+ * </p >
+ *
+ * @author : RhysNi
+ * @version : v1.0
+ * @date : 2023/3/27 9:43
+ * @CopyRight :　<a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+ */
+public interface BeanPostProcessor {
+
+    /**
+     * <p>
+     * <b>初始化之前执行</b>
+     * </p >
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/3/27
+     * @param bean     <span style="color:#e38b6b;">bean实例</span>
+     * @param beanName <span style="color:#e38b6b;">bean名称</span>
+     * @return <span style="color:#ffcb6b;"> java.lang.Object</span>
+     * @throws Exception <span style="color:#ffcb6b;">异常类</span>
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+     */
+    default Object postProcessBeforeInitialization(Object bean, String beanName) {
+        return bean;
+    }
+
+
+    /**
+     * <p>
+     * <b>初始化之后执行</b>
+     * </p >
+     *
+     * @param bean     <span style="color:#e38b6b;">bean实例</span>
+     * @param beanName <span style="color:#e38b6b;">bean名称</span>
+     * @return <span style="color:#ffcb6b;"> java.lang.Object</span>
+     * @throws Exception <span style="color:#ffcb6b;">异常类</span>
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/3/27
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+     */
+    default Object postProcessAfterInitialization(Object bean, String beanName) {
+        return bean;
+    }
+}
+
+```
+
+##### BeanFactory接口优化
+
+> `BeanFactory`接口中继承`BeanPostProcessor`并添加`beanPostProcessor注册器
+
+```java
+package com.rhys.spring.IoC;
+
+import java.util.List;
+import java.util.Map;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/2/7 12:08 AM
+ */
+public interface BeanFactory extends BeanPostProcessor {
+
+    /**
+     * <p>
+     * <b>beanPostProcessor注册器</b>
+     * </p >
+     *
+     * @param beanPostProcessor <span style="color:#e38b6b;">bean执行器</span>
+     * @return <span style="color:#ffcb6b;"></span>
+     * @throws Exception <span style="color:#ffcb6b;">异常类</span>
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/3/27
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+     */
+    void registerBeanPostProcessor(BeanPostProcessor beanPostProcessor);
+}
+```
+
+##### DefaultBeanFactory优化
+
+```java
+public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, Closeable {
+        private List<BeanPostProcessor> beanPostProcessorList = Collections.synchronizedList(new ArrayList<>());
+
+        /**
+     * <p>
+     * <b>beanPostProcessor注册器</b>
+     * </p >
+     *
+     * @param beanPostProcessor <span style="color:#e38b6b;">bean执行器</span>
+     * @return <span style="color:#ffcb6b;"></span>
+     * @throws Exception <span style="color:#ffcb6b;">异常类</span>
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/3/27
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+     */
+    @Override
+    public void registerBeanPostProcessor(BeanPostProcessor beanPostProcessor) {
+        this.beanPostProcessorList.add(beanPostProcessor);
+        if (beanPostProcessor instanceof BeanFactoryAware) {
+            ((BeanFactoryAware) beanPostProcessor).setBeanFactory(this);
+        }
+    }
+
+    /**
+     * <p>
+     * <b>应用Bean初始化前的处理</b>
+     * </p >
+     *
+     * @param beanInstance <span style="color:#e38b6b;">Bean实例</span>
+     * @param beanName     <span style="color:#e38b6b;">Bean名称</span>
+     * @return <span style="color:#ffcb6b;"> java.lang.Object</span>
+     * @throws Exception <span style="color:#ffcb6b;">异常类</span>
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/3/27
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+     */
+    private Object applyPostProcessBeforeInitialization(Object beanInstance, String beanName) throws Exception {
+        for (BeanPostProcessor beanPostProcessor : beanPostProcessorList) {
+            beanInstance = beanPostProcessor.postProcessBeforeInitialization(beanInstance, beanName);
+        }
+        return beanInstance;
+    }
+
+    /**
+     * <p>
+     * <b>应用Bean初始化之后的处理</b>
+     * </p >
+     *
+     * @param beanInstance <span style="color:#e38b6b;">Bean实例</span>
+     * @param beanName     <span style="color:#e38b6b;">Bean名称</span>
+     * @return <span style="color:#ffcb6b;"> java.lang.Object</span>
+     * @throws Exception <span style="color:#ffcb6b;">异常类</span>
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/3/27
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+     */
+    private Object applyPostProcessAfterInitialization(Object beanInstance, String beanName) {
+        for (BeanPostProcessor beanPostProcessor : beanPostProcessorList) {
+            beanInstance = beanPostProcessor.postProcessAfterInitialization(beanInstance, beanName);
+        }
+        return beanInstance;
+    }
+    
+    /*
+    * 创建实例
+    */
+    private Object createInstance(String beanName, BeanDefinition beanDefinition) throws Exception {
+        //省略...
+
+        //应用Bean初始化前的处理
+        beanInstance = this.applyPostProcessBeforeInitialization(beanInstance, beanName);
+
+        //创建完实例执行初始化方法
+        this.init(beanDefinition, beanInstance);
+
+        //应用Bean初始化之后的处理
+        beanInstance = this.applyPostProcessAfterInitialization(beanInstance, beanName);
+
+        return beanInstance;
+    }
+}
 ```
 

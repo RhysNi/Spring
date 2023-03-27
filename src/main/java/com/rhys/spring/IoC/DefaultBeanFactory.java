@@ -32,6 +32,27 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
     private Map<Class<?>, Set<String>> typeMap = new ConcurrentHashMap<>(256);
     private ThreadLocal<Set<String>> buildingBeansRecorder = new ThreadLocal<>();
     private ThreadLocal<Map<String, Object>> earlyExposeBuildingBeans = new ThreadLocal<>();
+    private List<BeanPostProcessor> beanPostProcessorList = Collections.synchronizedList(new ArrayList<>());
+
+    /**
+     * <p>
+     * <b>beanPostProcessor注册器</b>
+     * </p >
+     *
+     * @param beanPostProcessor <span style="color:#e38b6b;">bean执行器</span>
+     * @return <span style="color:#ffcb6b;"></span>
+     * @throws Exception <span style="color:#ffcb6b;">异常类</span>
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/3/27
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+     */
+    @Override
+    public void registerBeanPostProcessor(BeanPostProcessor beanPostProcessor) {
+        this.beanPostProcessorList.add(beanPostProcessor);
+        if (beanPostProcessor instanceof BeanFactoryAware) {
+            ((BeanFactoryAware) beanPostProcessor).setBeanFactory(this);
+        }
+    }
 
     /**
      * 注册BeanDefinition
@@ -301,6 +322,7 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
         return null;
     }
 
+
     private Object doGetBean(String beanName) throws Exception {
         //校验beanName
         Objects.requireNonNull(beanName, "beanName can not be empty !");
@@ -398,9 +420,55 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
         //创建完成后移除缓存中提前暴露的bean实例
         this.removeEarlyExposeBuildingBeans(beanName);
 
+        //应用Bean初始化前的处理
+        beanInstance = this.applyPostProcessBeforeInitialization(beanInstance, beanName);
+
         //创建完实例执行初始化方法
         this.init(beanDefinition, beanInstance);
 
+        //应用Bean初始化之后的处理
+        beanInstance = this.applyPostProcessAfterInitialization(beanInstance, beanName);
+
+        return beanInstance;
+    }
+
+    /**
+     * <p>
+     * <b>应用Bean初始化前的处理</b>
+     * </p >
+     *
+     * @param beanInstance <span style="color:#e38b6b;">Bean实例</span>
+     * @param beanName     <span style="color:#e38b6b;">Bean名称</span>
+     * @return <span style="color:#ffcb6b;"> java.lang.Object</span>
+     * @throws Exception <span style="color:#ffcb6b;">异常类</span>
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/3/27
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+     */
+    private Object applyPostProcessBeforeInitialization(Object beanInstance, String beanName) throws Exception {
+        for (BeanPostProcessor beanPostProcessor : beanPostProcessorList) {
+            beanInstance = beanPostProcessor.postProcessBeforeInitialization(beanInstance, beanName);
+        }
+        return beanInstance;
+    }
+
+    /**
+     * <p>
+     * <b>应用Bean初始化之后的处理</b>
+     * </p >
+     *
+     * @param beanInstance <span style="color:#e38b6b;">Bean实例</span>
+     * @param beanName     <span style="color:#e38b6b;">Bean名称</span>
+     * @return <span style="color:#ffcb6b;"> java.lang.Object</span>
+     * @throws Exception <span style="color:#ffcb6b;">异常类</span>
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/3/27
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+     */
+    private Object applyPostProcessAfterInitialization(Object beanInstance, String beanName) {
+        for (BeanPostProcessor beanPostProcessor : beanPostProcessorList) {
+            beanInstance = beanPostProcessor.postProcessAfterInitialization(beanInstance, beanName);
+        }
         return beanInstance;
     }
 
@@ -918,6 +986,4 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
         }
         return false;
     }
-
-
 }
