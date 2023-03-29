@@ -693,6 +693,12 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
             return beanDefinition.getBeanClass().getConstructor(null);
         }
 
+        //原型Bean 第二次直接从缓存获取
+        constructor = beanDefinition.getConstructor();
+        if (constructor != null) {
+            return constructor;
+        }
+
         //先根据参数类型进行精确匹配
         Class<?>[] paramTypes = new Class[args.length];
         for (int i = 0; i < args.length; i++) {
@@ -732,6 +738,9 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
         if (constructor == null) {
             throw new Exception("there is no corresponding constructor for this bean definition:[" + beanDefinition + "]");
         }
+
+        //原型Bean第一次进行缓存
+        beanDefinition.setConstructor(constructor);
         return constructor;
     }
 

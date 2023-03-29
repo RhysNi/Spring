@@ -178,6 +178,18 @@ public class GenericBeanDefinition implements BeanDefinition {
     }
 
     /**
+     * 获取参数值
+     * @author Rhys.Ni
+     * @date 2023/3/30
+     * @param
+     * @return java.lang.Object[]
+     */
+    @Override
+    public Object[] getConstructorArgumentRealValues() {
+        return realConstructorArgumentValues.get();
+    }
+
+    /**
      * 用于BeanFactory获取工厂方法
      *
      * @return java.lang.reflect.Method

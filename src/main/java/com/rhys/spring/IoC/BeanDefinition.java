@@ -127,6 +127,15 @@ public interface BeanDefinition {
     void setConstructorArgumentRealValues(Object[] values);
 
     /**
+     * 获取构造参数
+     * @author Rhys.Ni
+     * @date 2023/3/30
+     * @param
+     * @return java.lang.Object[]
+     */
+    Object[] getConstructorArgumentRealValues();
+
+    /**
      * 用于BeanFactory获取工厂方法
      *
      * @param

@@ -6,6 +6,7 @@ import com.rhys.spring.IoC.BeanPostProcessor;
 import com.rhys.spring.aop.advisor.Advisor;
 import com.rhys.spring.aop.advisor.PointCutAdvisor;
 import com.rhys.spring.aop.pointcut.PointCut;
+import com.rhys.spring.aop.weaving.proxy.AopProxyFactory;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ReflectionUtils;
@@ -53,8 +54,10 @@ public class AdvisorAutoProxyCreator implements BeanPostProcessor, BeanFactoryAw
 
     /**
      * 创建代理实例
+     * JDK  --> 接口实现
+     * CGLIB --> 父子关系
      *
-     * @param bean 原始bean实例
+     * @param bean     原始bean实例
      * @param beanName bean名称
      * @param advisors 切面通知者
      * @return java.lang.Object
@@ -62,8 +65,8 @@ public class AdvisorAutoProxyCreator implements BeanPostProcessor, BeanFactoryAw
      * @date 2023/3/28
      */
     private Object createProxy(Object bean, String beanName, List<Advisor> advisors) {
-        //doProcess...
-        return bean;
+        //通过AopProxyFactory完成选择和创建代理对象的工作
+        return AopProxyFactory.getDefaultAopProxyFactory().createAopProxy(bean, beanName, advisors, beanFactory).getProxy();
     }
 
     /**

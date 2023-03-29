@@ -1403,7 +1403,7 @@ public class TestB {
 >   -  通过BeanDefinition获取到BeanClass之后
 >   - 通过反射的内容去找到有参的构造对象
 >   - 找到有参构造对象后结合传过来的实参得到对应的结果
-> - 那么构造器中所关联的实参则需要在`BeanDefinition`接口中新增一个`getConstructorArgumentValues() : List<?>`方法
+> - 那么构造器中所关联的实参则需要在`BeanDefinition`接口中新增一个`getConstructorArgumentValues() : Object[]`方法
 > - 同时在`GenericBeanDefinition`中实现`Getter/Setter`
 
 #### 优化构造方法创建Bean
@@ -1412,7 +1412,7 @@ public class TestB {
 
 ##### BeanDefinition优化
 
-![image-20230308010714240](https://article.biliimg.com/bfs/article/f6ec3aa8f18acd71eec7fbce7f06ac1b80d9afda.png)
+![image-20230330050657835](https://article.biliimg.com/bfs/article/ced358f0440fecb5af48a386d6d41b308bcaf6c0.png)
 
 ```java
 package com.rhys.spring.IoC;
@@ -1435,7 +1435,7 @@ public interface BeanDefinition {
      * @param
      * @return java.util.List<?>
      */
-    List<?> getConstructorArgumentValues();
+    Object[] getConstructorArgumentValues();
 }
 
 ```
@@ -1458,7 +1458,7 @@ import java.util.List;
  */
 public class GenericBeanDefinition implements BeanDefinition {
 
-    private List<?> constructorArgumentValues;
+    private Object[] constructorArgumentValues;
 
 
     /**
@@ -1469,11 +1469,11 @@ public class GenericBeanDefinition implements BeanDefinition {
      * @date 2023/3/8
      */
     @Override
-    public List<?> getConstructorArgumentValues() {
+    public Object[] getConstructorArgumentValues() {
         return constructorArgumentValues;
     }
 
-    public void setConstructorArgumentValues(List<?> constructorArgumentValues) {
+    public void setConstructorArgumentValues(Object[] constructorArgumentValues) {
         this.constructorArgumentValues = constructorArgumentValues;
     }
 }
@@ -1992,7 +1992,7 @@ private Method determineFactoryMethod(BeanDefinition beanDefinition, Object[] ar
 >
 > 因为在创建实例的过程中要去推断使用有参构造还是无参构造，如果使用有参构造还需要根据参数列表去遍历精确匹配和模糊匹配，如果每次创建Bean实例都来遍历匹配一次显然性能是非常低的，工厂方法创建Bean实例推断工厂方法的时候逻辑也类似，因此对`Constructor`和`Method`增加了缓存，只要第一次创建过Bean实例，直接将对应的构造器或工厂方法set到BeanDefinition中，下次再创建的时候从BeanDefinition中就可以获取到直接使用了，不需要反复推断，从而达到提升性能的目的
 
-![](https://article.biliimg.com/bfs/article/0eb3fcfa87e6860c403ecbe95ffdc93c85461d48.png)
+![image-20230330050811601](https://article.biliimg.com/bfs/article/eeb62bd0fcb2d0b9234c213df0630050c1f0c91c.png)
 
 #### 循环依赖
 
@@ -2157,7 +2157,7 @@ public class PropertyValue {
 
 > 增加属性值获取
 
-![image-20230314031412122](https://article.biliimg.com/bfs/article/428df798a3be14a3f11576c62c99dfdebc1f47ae.png)
+![image-20230330050839465](https://article.biliimg.com/bfs/article/163f28ec4b7b7706ef7cd637d441b4693b5e4c8a.png)
 
 ```java
 package com.rhys.spring.IoC;
@@ -2378,7 +2378,7 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
 
 #### IoC和DI类图总览
 
-![image-20230314043342726](https://article.biliimg.com/bfs/article/d8f11a2869f7945aecbf95145fda536a70265260.png)
+![image-20230314043342726](https://article.biliimg.com/bfs/article/c537266fd74d956a871e5a3374ce32265d2a5303.png)
 
 ## Aspect Oriented Programming
 
@@ -3511,6 +3511,504 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
 ```
 
 ##### 代理对象
+
+> 为其他对象提供一种代理以控制对这个对象的访问。在某些情况下，一个对象不适合或者不能直接引用另一个对象，而代理对象可以在调用者和目标对象之间起到中介的作用
+
+##### 代理实现方法
+
+###### JDK动态代理
+
+> 在运行时，对接口创建代理对象
+
+![image.png](https://article.biliimg.com/bfs/article/1ea5795f5af74835c102108f7afbc4be14fe8c6c.png)
+
+###### Cglib动态代理
+
+![image.png](https://article.biliimg.com/bfs/article/b018376b4c1fc375c0bc784b440a8dd26d54772a.png)
+
+###### Javassist
+
+> 引入`Javassist`依赖
+
+```xml
+<dependency>
+    <groupId>org.javassist</groupId>
+    <artifactId>javassist</artifactId>
+    <version>3.22.0-GA</version>
+</dependency>
+```
+
+> 测试代码
+
+```java
+public class JavassistTest {
+    public static void main(String[] args) throws Exception{
+        ClassPool pool = ClassPool.getDefault();
+        Loader loader = new Loader(pool);
+        CtClass ct = pool.makeClass("zyer");
+        
+        CtField field = new CtField(CtClass.intType,"age",ct);
+        field.setModifiers(AccessFlag.PUBLIC);
+        ct.addField(field);
+        
+        CtConstructor constructor = CtNewConstructor.make("public GeneratedClass(int age){this.age=age;}",ct);
+        ct.addConstructor(constructor);
+        
+        CtMethod method = CtNewMethod.make("public void hello(int age){System.out.println(age);}",ct);
+        ct.addMethod(method);
+        
+        String cmd = "public static void main(String[] args) {System.out.println(\"my name is zyer\");}";
+        CtMethod method1 = CtNewMethod.make(cmd,ct);
+        ct.addMethod(method1);
+        ct.writeFile("/Users/zyer/Downloads/untitled/out/production/untitled/");
+        
+        Class name = loader.loadClass("zyer");
+        Constructor constructor1 = name.getDeclaredConstructor(int.class);
+        Object obj = constructor1.newInstance(1);
+        Method method2 = name.getDeclaredMethod("hello",int.class);
+        method2.invoke(obj,123);
+        Method method3 = name.getDeclaredMethod("main",String[].class);
+        method3.invoke(null,(Object) new String[]{});
+    }
+}
+```
+
+###### ASM
+
+##### 代理实现设计
+
+> 通过`抽象`、`面向接口编程`来支持不同实现的代码，从而具备灵活扩展的特性，设计如下：
+
+![image-20230330035947951](https://article.biliimg.com/bfs/article/77950eeb7b7bcee0612dee56bdbc20341c7efeca.png)
+
+```java
+package com.rhys.spring.aop.weaving.proxy;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/3/28 4:34 AM
+ */
+public interface AopProxy {
+    Object getProxy();
+
+    Object getProxy(ClassLoader classLoader);
+}
+```
+
+##### 代理对象创建设计
+
+> - JDK动态代理实现`InvocationHandler`
+> - CgLib动态代理实现`MethodInterceptor`
+
+![image-20230330041625124](https://article.biliimg.com/bfs/article/8694b6f7e5ff83bd0c44b92832fe2482bb284740.png)
+
+###### CglibDynamicAopProxy实现
+
+```java
+package com.rhys.spring.aop.weaving.proxy;
+
+import com.rhys.spring.IoC.BeanDefinition;
+import com.rhys.spring.IoC.BeanFactory;
+import com.rhys.spring.IoC.DefaultBeanFactory;
+import com.rhys.spring.aop.advisor.Advisor;
+import net.sf.cglib.proxy.Enhancer;
+import net.sf.cglib.proxy.MethodInterceptor;
+import net.sf.cglib.proxy.MethodProxy;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
+import java.util.List;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/3/28 4:34 AM
+ */
+public class CglibDynamicAopProxy implements AopProxy, MethodInterceptor {
+    private static final Log logger = LogFactory.getLog(CglibDynamicAopProxy.class);
+
+    private static Enhancer enhancer = new Enhancer();
+
+    private String beanName;
+
+    private Object target;
+
+    private List<Advisor> matchAdvisors;
+
+    private BeanFactory beanFactory;
+
+    public CglibDynamicAopProxy(String beanName, Object target, List<Advisor> matchAdvisors, BeanFactory beanFactory) {
+        this.beanName = beanName;
+        this.target = target;
+        this.matchAdvisors = matchAdvisors;
+        this.beanFactory = beanFactory;
+    }
+
+    @Override
+    public Object getProxy() {
+        return this.getProxy(target.getClass().getClassLoader());
+    }
+
+    @Override
+    public Object getProxy(ClassLoader classLoader) {
+        logger.info("Cglib创建代理：" + target);
+
+        //获取目标对象类型
+        Class<?> targetClass = this.target.getClass();
+        enhancer.setSuperclass(targetClass);
+        enhancer.setInterfaces(this.getClass().getInterfaces());
+        enhancer.setCallback(this);
+
+        Constructor<?> constructor = null;
+        try {
+            constructor = targetClass.getConstructor(new Class<?>[]{});
+        } catch (NoSuchMethodException | SecurityException e) {
+            //不处理继续往下走
+        }
+
+        //此时如果构造器仍然为空，直接创建无参代理对象，否则根据Bean定义获取对应参数类型和参数列表
+        if (constructor==null){
+            return enhancer.create();
+        }else {
+            BeanDefinition beanDefinition = ((DefaultBeanFactory) beanFactory).getBeanDefinition(beanName);
+            return enhancer.create(beanDefinition.getConstructor().getParameterTypes(),beanDefinition.getConstructorArgumentValues());
+        }
+    }
+
+    @Override
+    public Object intercept(Object o, Method method, Object[] objects, MethodProxy methodProxy) throws Throwable {
+        return null;
+    }
+}
+```
+
+###### JDKDynamicAopProxy实现
+
+```java
+package com.rhys.spring.aop.weaving.proxy;
+
+import com.rhys.spring.IoC.BeanFactory;
+import com.rhys.spring.aop.advisor.Advisor;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+import java.util.List;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/3/30 5:16 AM
+ */
+public class JDKDynamicAopProxy implements AopProxy, InvocationHandler {
+    private static final Log logger = LogFactory.getLog(JDKDynamicAopProxy.class);
+
+    private String beanName;
+
+    private Object target;
+
+    private List<Advisor> matchAdvisors;
+
+    private BeanFactory beanFactory;
+
+    public JDKDynamicAopProxy(String beanName, Object target, List<Advisor> matchAdvisors, BeanFactory beanFactory) {
+        this.beanName = beanName;
+        this.target = target;
+        this.matchAdvisors = matchAdvisors;
+        this.beanFactory = beanFactory;
+    }
+
+    @Override
+    public Object getProxy() {
+        return this.getProxy(target.getClass().getClassLoader());
+    }
+
+    @Override
+    public Object getProxy(ClassLoader classLoader) {
+        logger.info("JDK创建代理：" + target);
+        return Proxy.newProxyInstance(classLoader, target.getClass().getInterfaces(), this);
+    }
+
+    @Override
+    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        return null;
+    }
+}
+```
+
+##### 增强逻辑实现
+
+> 无论我们选择哪种代理方式来生成代理对象，最终的增强逻辑都是相同的，因此我们最好将相同的逻辑抽出来，设计如下：
+>
+> - 增加一个`AopProxyUtils`工具类，将这部分逻辑封装到这里面供最终使用
+
+![image-20230330042447312](https://article.biliimg.com/bfs/article/9095984fc63addbbce782960f52cbf0f9ca13f66.png)
+
+###### AopProxyUtils实现
+
+```java
+package com.rhys.spring.aop.weaving.proxy;
+
+import com.rhys.spring.IoC.BeanFactory;
+import com.rhys.spring.aop.advisor.Advisor;
+import com.rhys.spring.aop.advisor.PointCutAdvisor;
+import org.apache.commons.collections4.CollectionUtils;
+
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/3/28 4:38 AM
+ */
+public class AopProxyUtils {
+
+    /**
+     * 对方法应用advices增强
+     *
+     * @param target        目标对象
+     * @param method        方法
+     * @param args          参数列表
+     * @param matchAdvisors 用于匹配的切面缓存
+     * @param proxy         代理对象
+     * @param beanFactory   bean工厂
+     * @return java.lang.Object
+     * @author Rhys.Ni
+     * @date 2023/3/30
+     */
+    public static Object applyAdvices(Object target, Method method, Object[] args, List<Advisor> matchAdvisors, Object proxy, BeanFactory beanFactory) throws Throwable {
+        //获取对当前方法进行增强的Advice通知
+        List<Object> advices = AopProxyUtils.getShouldApplyAdvices(target.getClass(), method, matchAdvisors, beanFactory);
+
+        //如果匹配到存在增强的advice,责任链式执行增强
+        if (CollectionUtils.isNotEmpty(advices)) {
+            AopAdviceChainInvocation chainInvocation = new AopAdviceChainInvocation(proxy, target, method, args, advices);
+            return chainInvocation.invoke();
+        } else {
+            return method.invoke(target, args);
+        }
+    }
+
+    /**
+     * 获取对当前方法进行增强的Advice通知
+     *
+     * @param clazz         目标对象
+     * @param method        方法
+     * @param matchAdvisors 用于匹配的切面缓存
+     * @param beanFactory   bean工厂
+     * @return java.util.List<java.lang.Object>
+     * @author Rhys.Ni
+     * @date 2023/3/30
+     */
+    private static List<Object> getShouldApplyAdvices(Class<?> clazz, Method method, List<Advisor> matchAdvisors, BeanFactory beanFactory) throws Exception {
+        if (matchAdvisors.isEmpty()) {
+            return null;
+        }
+        //缓存匹配的切面并收集返回
+        List<Object> advisors = new ArrayList<>();
+        for (Advisor advisor : matchAdvisors) {
+            if (advisor instanceof PointCutAdvisor && ((PointCutAdvisor)advisor).getPointCut().matchMethod(method,clazz)){
+                advisors.add(beanFactory.getBean(advisor.getAdviceBeanName()));
+            }
+        }
+        return advisors;
+    }
+}
+```
+
+##### 应用Advice增强实现逻辑
+
+![image-20230330043549199](https://article.biliimg.com/bfs/article/065553249ddd243bd04670cbe3e91d6c7df7e6ad.png)
+
+###### AopAdviceChainInvocation实现
+
+```java
+package com.rhys.spring.aop.weaving.proxy;
+
+import com.rhys.spring.aop.advice.*;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import java.lang.reflect.Method;
+import java.util.List;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/3/30 5:31 AM
+ */
+public class AopAdviceChainInvocation {
+    private static final Log logger = LogFactory.getLog(AopAdviceChainInvocation.class);
+
+    private static Method invokeMethod;
+
+    static {
+        try {
+            invokeMethod = AopAdviceChainInvocation.class.getMethod("invoke", null);
+        } catch (NoSuchMethodException | SecurityException e) {
+            logger.error("AopAdviceChainInvocation Exception:{}", e);
+        }
+    }
+
+    /**
+     * 责任链执行索引记录
+     */
+    private int i = 0;
+    private Object proxy;
+    private Object target;
+    private Method method;
+    private Object[] args;
+    private List<Object> advices;
+
+    public AopAdviceChainInvocation(Object proxy, Object target, Method method, Object[] args, List<Object> advices) {
+        this.proxy = proxy;
+        this.target = target;
+        this.method = method;
+        this.args = args;
+        this.advices = advices;
+    }
+
+    public Object invoke() throws Throwable {
+        if (i < this.advices.size()) {
+            Object advice = this.advices.get(i);
+            //判断通知类型属性哪种则执行对应的增强逻辑
+            if (advice instanceof MethodBeforeAdvice) {
+                ((MethodBeforeAdvice) advice).before(method, args, target);
+            } else if (advice instanceof MethodInterceptorAdvice) {
+                //这里的方法和目标对象传的是这里的链invoke方法和链对象
+                return ((MethodInterceptorAdvice) advice).invoke(invokeMethod, null, this);
+            } else if (advice instanceof AfterReturnAdvice) {
+                //先得到结果再进行后置增强
+                Object returnValue = this.invoke();
+                ((AfterReturnAdvice) advice).afterReturning(returnValue, method, args, target);
+                return returnValue;
+            } else if (advice instanceof AfterAdvice) {
+                //最终通知增强在finally中进行
+                Object returnValue = null;
+                try {
+                    returnValue = this.invoke();
+                } finally {
+                    ((AfterAdvice) advice).after(returnValue, method, args, target);
+                }
+                return returnValue;
+            } else if (advice instanceof ThrowsAdvice) {
+                //异常通知在catch中进行
+                try {
+                    return this.invoke();
+                } catch (Exception e) {
+                    ((ThrowsAdvice) advice).afterThrowing(method, args, target, e);
+                }
+            }
+            return this.invoke();
+        } else {
+            return this.method.invoke(target, args);
+        }
+    }
+}
+```
+
+##### AopProxy使用设计
+
+> 通过工厂模式来创建使用AopProxy
+
+![image-20230330044150713](https://article.biliimg.com/bfs/article/74196ae914fce78d577520ba358945780e940058.png)
+
+###### AopProxyFactory接口实现
+
+```java
+package com.rhys.spring.aop.weaving.proxy;
+
+import com.rhys.spring.IoC.BeanFactory;
+import com.rhys.spring.aop.advisor.Advisor;
+
+import java.util.List;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/3/28 4:28 AM
+ */
+public interface AopProxyFactory {
+   /**
+    * 创建Aop代理    * @author Rhys.Ni
+    * @date 2023/3/30
+    * @param bean bean实例
+    * @param beanName bean名称
+    * @param matchAdvisors 用于匹配的切面通知缓存
+    * @param beanFactory bean工厂
+    * @return org.springframework.aop.framework.AopProxy
+    */
+    AopProxy createAopProxy(Object bean, String beanName, List<Advisor> matchAdvisors, BeanFactory beanFactory);
+
+    /**
+     * 获得默认的AopProxyFactory实例
+     * @author Rhys.Ni
+     * @date 2023/3/30
+     * @param
+     * @return com.rhys.spring.aop.weaving.proxy.AopProxyFactory
+     */
+    static AopProxyFactory getDefaultAopProxyFactory(){
+        return new DefaultAopProxyFactory();
+    }
+}
+```
+
+###### AopProxyFactory默认实现
+
+```java
+package com.rhys.spring.aop.weaving.proxy;
+
+import com.rhys.spring.IoC.BeanFactory;
+import com.rhys.spring.aop.advisor.Advisor;
+
+import java.util.List;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/3/28 4:30 AM
+ */
+public class DefaultAopProxyFactory implements AopProxyFactory {
+    @Override
+    public AopProxy createAopProxy(Object bean, String beanName, List<Advisor> matchAdvisors, BeanFactory beanFactory) {
+        //判断用JDK动态代理还是用Cglib
+        if (shouldUseJDKDynamicProxy(bean, beanName)) {
+            return new JDKDynamicAopProxy(beanName, bean, matchAdvisors, beanFactory);
+        } else {
+            return new CglibDynamicAopProxy(beanName, bean, matchAdvisors, beanFactory);
+        }
+    }
+
+    private boolean shouldUseJDKDynamicProxy(Object bean, String beanName) {
+        //doProcess...后续实现
+        return false;
+    }
+}
+```
+
+##### AdvisorAutoProxyCreator优化
+
+> 在前面我们并没有具体实现`createProxy`方法的逻辑，现在有了代理部分的逻辑就可以通过AopProxyFactory完成选择和创建代理对象的工作
+
+```java
+public class AdvisorAutoProxyCreator implements BeanPostProcessor, BeanFactoryAware {
+  	//...省略其他方法
+  
+		private Object createProxy(Object bean, String beanName, List<Advisor> advisors) {
+        //通过AopProxyFactory完成选择和创建代理对象的工作
+        return AopProxyFactory.getDefaultAopProxyFactory().createAopProxy(bean, beanName, advisors, beanFactory).getProxy();
+    }
+  
+  	//...省略其他方法
+}
+```
 
 ### AOP测试
 

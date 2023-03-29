@@ -2,12 +2,10 @@ import com.rhys.spring.DI.BeanReference;
 import com.rhys.spring.IoC.BeanPostProcessor;
 import com.rhys.spring.IoC.GenericBeanDefinition;
 import com.rhys.spring.IoC.PreBuildBeanFactory;
-import com.rhys.spring.IoC.exception.BeanDefinitionRegistryException;
 import com.rhys.spring.aop.advisor.AspectJPointCutAdvisor;
 import com.rhys.spring.aop.impl.MyAfterReturningAdvice;
 import com.rhys.spring.aop.impl.MyBeforeAdvice;
 import com.rhys.spring.aop.impl.MyMethodInterceptor;
-import com.rhys.spring.aop.pointcut.AspectJExpressionPointCut;
 import com.rhys.spring.aop.weaving.AdvisorAutoProxyCreator;
 import com.rhys.spring.demo.TestA;
 import com.rhys.spring.demo.TestB;
@@ -30,10 +28,14 @@ public class AOPTest {
 
         //配置TestABean
         beanDefinition.setBeanClass(TestA.class);
+        //定义构造参数依赖
         List<Object> args = new ArrayList<>();
         args.add("testABean");
+        //Bean依赖通过BeanReference处理
         args.add(new BeanReference("bBean"));
+        //定义beanDefinition的构造参数列表
         beanDefinition.setConstructorArgumentValues(args);
+        //注册BeanDefinition
         beanFactory.registryBeanDefinition("aBean", beanDefinition);
 
         //配置TestBBean
@@ -65,7 +67,7 @@ public class AOPTest {
         args = new ArrayList<>();
         args.add("myBeforeAdvice");
         //对TestA类中的以test为前缀的所有方法进行前置增强
-        args.add("excution(* com.rhys.spring.demo.TestA.test*(..))");
+        args.add("execution(* com.rhys.spring.demo.TestA.test*(..))");
         beanDefinition.setConstructorArgumentValues(args);
         beanFactory.registryBeanDefinition("aspectJPointCutAdvisor1", beanDefinition);
 
@@ -75,7 +77,7 @@ public class AOPTest {
         args = new ArrayList<>();
         args.add("myAfterReturningAdvice");
         //对TestA类中的以test为前缀的所有方法进行后置增强
-        args.add("excution(* com.rhys.spring.demo.TestA.test*(..))");
+        args.add("execution(* com.rhys.spring.demo.TestA.test*(..))");
         beanDefinition.setConstructorArgumentValues(args);
         beanFactory.registryBeanDefinition("aspectJPointCutAdvisor2", beanDefinition);
 
@@ -85,7 +87,7 @@ public class AOPTest {
         args = new ArrayList<>();
         args.add("myMethodInterceptor");
         //对TestA类中的以test为前缀的所有方法进行环绕增强
-        args.add("excution(* com.rhys.spring.demo.TestA.test*(..))");
+        args.add("execution(* com.rhys.spring.demo.TestA.test*(..))");
         beanDefinition.setConstructorArgumentValues(args);
         beanFactory.registryBeanDefinition("aspectJPointCutAdvisor3", beanDefinition);
 
