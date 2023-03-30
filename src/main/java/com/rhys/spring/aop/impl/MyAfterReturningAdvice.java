@@ -26,6 +26,6 @@ public class MyAfterReturningAdvice implements AfterReturnAdvice {
      */
     @Override
     public void afterReturning(Object returnValue, Method method, Object[] args, Object target) throws Throwable {
-        System.out.println(this + "对" + target + "进行后置增强,返回值：" + returnValue);
+        System.out.println(this + " 对" + target + "进行后置增强,返回值：" + returnValue);
     }
 }

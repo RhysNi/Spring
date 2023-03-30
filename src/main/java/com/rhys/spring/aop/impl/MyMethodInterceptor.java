@@ -26,9 +26,9 @@ public class MyMethodInterceptor implements MethodInterceptorAdvice {
      */
     @Override
     public Object invoke(Method method, Object[] args, Object target) throws Throwable {
-        System.out.println(this + "对" + target + "进行环绕增强-方法前置增强");
+        System.out.println(this + " 对" + target + "进行环绕增强-方法前置增强");
         Object o = method.invoke(target, args);
-        System.out.println(this + "对" + target + "进行环绕增强-方法后置增强");
+        System.out.println(this + " 对" + target + "进行环绕增强-方法后置增强");
         return o;
     }
 }

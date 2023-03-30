@@ -25,6 +25,6 @@ public class MyBeforeAdvice implements MethodBeforeAdvice {
      */
     @Override
     public void before(Method method, Object[] args, Object target) throws Throwable {
-        System.out.println(this + "对" + target + "进行前置增强");
+        System.out.println(this + " 对" + target + "进行前置增强");
     }
 }

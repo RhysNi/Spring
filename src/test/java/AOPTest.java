@@ -9,6 +9,7 @@ import com.rhys.spring.aop.impl.MyMethodInterceptor;
 import com.rhys.spring.aop.weaving.AdvisorAutoProxyCreator;
 import com.rhys.spring.demo.TestA;
 import com.rhys.spring.demo.TestB;
+import org.apache.commons.collections4.CollectionUtils;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -51,15 +52,16 @@ public class AOPTest {
         beanDefinition.setBeanClass(MyBeforeAdvice.class);
         beanFactory.registryBeanDefinition("myBeforeAdvice", beanDefinition);
 
+        //环绕增强advice bean注册
+        beanDefinition = new GenericBeanDefinition();
+        beanDefinition.setBeanClass(MyMethodInterceptor.class);
+        beanFactory.registryBeanDefinition("myMethodInterceptor", beanDefinition);
+
         //后置增强advice bean注册
         beanDefinition = new GenericBeanDefinition();
         beanDefinition.setBeanClass(MyAfterReturningAdvice.class);
         beanFactory.registryBeanDefinition("myAfterReturningAdvice", beanDefinition);
 
-        //环绕增强advice bean注册
-        beanDefinition = new GenericBeanDefinition();
-        beanDefinition.setBeanClass(MyMethodInterceptor.class);
-        beanFactory.registryBeanDefinition("myMethodInterceptor", beanDefinition);
 
         //注册Advisor（通知者/切面）bean
         beanDefinition = new GenericBeanDefinition();
@@ -71,17 +73,7 @@ public class AOPTest {
         beanDefinition.setConstructorArgumentValues(args);
         beanFactory.registryBeanDefinition("aspectJPointCutAdvisor1", beanDefinition);
 
-
-        beanDefinition = new GenericBeanDefinition();
-        beanDefinition.setBeanClass(AspectJPointCutAdvisor.class);
-        args = new ArrayList<>();
-        args.add("myAfterReturningAdvice");
-        //对TestA类中的以test为前缀的所有方法进行后置增强
-        args.add("execution(* com.rhys.spring.demo.TestA.test*(..))");
-        beanDefinition.setConstructorArgumentValues(args);
-        beanFactory.registryBeanDefinition("aspectJPointCutAdvisor2", beanDefinition);
-
-
+        //环绕切面
         beanDefinition = new GenericBeanDefinition();
         beanDefinition.setBeanClass(AspectJPointCutAdvisor.class);
         args = new ArrayList<>();
@@ -89,7 +81,19 @@ public class AOPTest {
         //对TestA类中的以test为前缀的所有方法进行环绕增强
         args.add("execution(* com.rhys.spring.demo.TestA.test*(..))");
         beanDefinition.setConstructorArgumentValues(args);
+        beanFactory.registryBeanDefinition("aspectJPointCutAdvisor2", beanDefinition);
+
+        //后置切面
+        beanDefinition = new GenericBeanDefinition();
+        beanDefinition.setBeanClass(AspectJPointCutAdvisor.class);
+        args = new ArrayList<>();
+        args.add("myAfterReturningAdvice");
+        //对TestA类中的以test为前缀的所有方法进行后置增强
+        args.add("execution(* com.rhys.spring.demo.TestA.test*(..))");
+        beanDefinition.setConstructorArgumentValues(args);
         beanFactory.registryBeanDefinition("aspectJPointCutAdvisor3", beanDefinition);
+
+
 
         //配置AdvisorAutoProxyCreator的Bean
         beanDefinition = new GenericBeanDefinition();
@@ -101,7 +105,7 @@ public class AOPTest {
 
         //注册完所需要的BeanDefinition后，且在生成普通Bean实例前，从BeanFactory中获得用户配置的所有BeanPostProcessor类型的Bean实例，注册到BeanFactory
         List<BeanPostProcessor> beanPostProcessorList = beanFactory.getBeanListOfType(BeanPostProcessor.class);
-        if (!beanPostProcessorList.isEmpty()) {
+        if (!CollectionUtils.isEmpty(beanPostProcessorList)) {
             for (BeanPostProcessor beanPostProcessor : beanPostProcessorList) {
                 beanFactory.registerBeanPostProcessor(beanPostProcessor);
             }
@@ -111,8 +115,13 @@ public class AOPTest {
         beanFactory.instantiateSingleton();
 
         TestA testA = (TestA) beanFactory.getBean("aBean");
+
         testA.execute();
+        System.out.println("--------------------------------");
+
         testA.testInit();
+        System.out.println("--------------------------------");
+
         testA.testDestroy();
     }
 }

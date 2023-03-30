@@ -3,6 +3,7 @@ package com.rhys.spring.aop.weaving;
 import com.rhys.spring.IoC.BeanFactory;
 import com.rhys.spring.IoC.BeanFactoryAware;
 import com.rhys.spring.IoC.BeanPostProcessor;
+import com.rhys.spring.aop.advice.Advice;
 import com.rhys.spring.aop.advisor.Advisor;
 import com.rhys.spring.aop.advisor.PointCutAdvisor;
 import com.rhys.spring.aop.pointcut.PointCut;
@@ -41,6 +42,11 @@ public class AdvisorAutoProxyCreator implements BeanPostProcessor, BeanFactoryAw
      */
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) throws Exception {
+        //不能对Advisor和Advice类型的Bean做处理
+        if (bean instanceof Advisor || bean instanceof Advice) {
+            return bean;
+        }
+
         //先判断Bean是否需要增强
         List<Advisor> advisors = getMatchedAdvisors(bean, beanName);
 
@@ -91,7 +97,7 @@ public class AdvisorAutoProxyCreator implements BeanPostProcessor, BeanFactoryAw
         }
 
         //如果没有获取到切面配置直接返回
-        if (CollectionUtils.isEmpty(advisorList)) {
+        if (CollectionUtils.isEmpty(this.advisorList)) {
             return null;
         }
 
@@ -130,11 +136,11 @@ public class AdvisorAutoProxyCreator implements BeanPostProcessor, BeanFactoryAw
         }
         //再判断方法是否匹配
         for (Method method : methods) {
-            if (!pointCut.matchMethod(method, beanClass)) {
-                return false;
+            if (pointCut.matchMethod(method, beanClass)) {
+                return true;
             }
         }
-        return true;
+        return false;
     }
 
     /**

@@ -61,12 +61,12 @@ public class CglibDynamicAopProxy implements AopProxy, MethodInterceptor {
             //不处理继续往下走
         }
 
-        //此时如果构造器仍然为空，直接创建无参代理对象，否则根据Bean定义获取对应参数类型和参数列表
-        if (constructor==null){
+        //此时如果构造器不为空，直接创建代理对象，否则根据Bean定义获取对应参数类型和参数列表
+        if (constructor!=null){
             return enhancer.create();
         }else {
             BeanDefinition beanDefinition = ((DefaultBeanFactory) beanFactory).getBeanDefinition(beanName);
-            return enhancer.create(beanDefinition.getConstructor().getParameterTypes(),beanDefinition.getConstructorArgumentRealValues());
+            return enhancer.create(beanDefinition.getConstructor().getParameterTypes(),beanDefinition.getRealConstructorArgumentValues());
         }
     }
 

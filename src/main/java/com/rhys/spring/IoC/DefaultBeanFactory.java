@@ -313,8 +313,9 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
     @Override
     public <T> List<T> getBeanListOfType(Class<T> c) throws Exception {
         Set<String> beanNames = this.typeMap.get(c);
+        List<T> beanList = null;
         if (beanNames != null) {
-            List<T> beanList = new ArrayList<>();
+            beanList = new ArrayList<>();
             for (String beanName : beanNames) {
                 beanList.add((T) this.getBean(beanName));
             }
@@ -368,7 +369,7 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
                     //创建实例
                     beanInstance = createInstance(beanName, beanDefinition);
                     //存到singletonBeanMap中
-                    singletonBeanMap.put(beanName, beanInstance);
+                    this.singletonBeanMap.put(beanName, beanInstance);
                 }
             }
         } else {

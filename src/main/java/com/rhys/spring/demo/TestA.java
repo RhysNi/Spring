@@ -17,13 +17,6 @@ public class TestA {
         System.out.println("调用了含有testB参数的构造方法");
     }
 
-    public TestA(String name, TestBean testB) {
-        super();
-        this.name = name;
-        this.testB = testB;
-        System.out.println("调用了含有testBean参数的构造方法");
-    }
-
 
     public TestA(TestB testB) {
         this.testB = testB;

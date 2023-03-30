@@ -26,7 +26,7 @@ public class GenericBeanDefinition implements BeanDefinition {
 
     private String initMethodName;
 
-    private String destoryMethodName;
+    private String destroyMethodName;
 
     private boolean primary;
 
@@ -37,10 +37,6 @@ public class GenericBeanDefinition implements BeanDefinition {
     private Method factoryMethod;
 
     private List<PropertyValue> propertyValues;
-
-    public Object[] getRealConstructorArgumentValues() {
-        return this.realConstructorArgumentValues.get();
-    }
 
     private ThreadLocal<Object[]> realConstructorArgumentValues = new ThreadLocal<>();
 
@@ -101,7 +97,7 @@ public class GenericBeanDefinition implements BeanDefinition {
      */
     @Override
     public String getDestroyMethodName() {
-        return this.destoryMethodName;
+        return this.destroyMethodName;
     }
 
     /**
@@ -185,9 +181,10 @@ public class GenericBeanDefinition implements BeanDefinition {
      * @return java.lang.Object[]
      */
     @Override
-    public Object[] getConstructorArgumentRealValues() {
-        return realConstructorArgumentValues.get();
+    public Object[] getRealConstructorArgumentValues() {
+        return this.realConstructorArgumentValues.get();
     }
+
 
     /**
      * 用于BeanFactory获取工厂方法
@@ -284,8 +281,8 @@ public class GenericBeanDefinition implements BeanDefinition {
         this.initMethodName = initMethodName;
     }
 
-    public void setDestoryMethodName(String destoryMethodName) {
-        this.destoryMethodName = destoryMethodName;
+    public void setDestroyMethodName(String destroyMethodName) {
+        this.destroyMethodName = destroyMethodName;
     }
 
     public void setPrimary(boolean primary) {
@@ -312,7 +309,7 @@ public class GenericBeanDefinition implements BeanDefinition {
                 .append(factoryBeanName, that.factoryBeanName)
                 .append(factoryMethodName, that.factoryMethodName)
                 .append(initMethodName, that.initMethodName)
-                .append(destoryMethodName, that.destoryMethodName)
+                .append(destroyMethodName, that.destroyMethodName)
                 .isEquals();
     }
 
@@ -324,7 +321,7 @@ public class GenericBeanDefinition implements BeanDefinition {
                 .append(factoryBeanName)
                 .append(factoryMethodName)
                 .append(initMethodName)
-                .append(destoryMethodName)
+                .append(destroyMethodName)
                 .append(primary)
                 .toHashCode();
     }
@@ -337,7 +334,7 @@ public class GenericBeanDefinition implements BeanDefinition {
                 ", factoryBeanName='" + factoryBeanName + '\'' +
                 ", factoryMethodName='" + factoryMethodName + '\'' +
                 ", initMethodName='" + initMethodName + '\'' +
-                ", destoryMethodName='" + destoryMethodName + '\'' +
+                ", destoryMethodName='" + destroyMethodName + '\'' +
                 ", primary=" + primary +
                 '}';
     }

@@ -3385,10 +3385,7 @@ public class AdvisorAutoProxyCreator implements BeanPostProcessor, BeanFactoryAw
         this.beanFactory = beanFactory;
     }
 }
-
 ```
-
-
 
 ##### BeanFactory接口优化
 
@@ -3669,18 +3666,18 @@ public class CglibDynamicAopProxy implements AopProxy, MethodInterceptor {
             //不处理继续往下走
         }
 
-        //此时如果构造器仍然为空，直接创建无参代理对象，否则根据Bean定义获取对应参数类型和参数列表
-        if (constructor==null){
+        //此时如果构造器不为空，直接创建代理对象，否则根据Bean定义获取对应参数类型和参数列表
+        if (constructor!=null){
             return enhancer.create();
         }else {
             BeanDefinition beanDefinition = ((DefaultBeanFactory) beanFactory).getBeanDefinition(beanName);
-            return enhancer.create(beanDefinition.getConstructor().getParameterTypes(),beanDefinition.getConstructorArgumentValues());
+            return enhancer.create(beanDefinition.getConstructor().getParameterTypes(),beanDefinition.getRealConstructorArgumentValues());
         }
     }
 
     @Override
-    public Object intercept(Object o, Method method, Object[] objects, MethodProxy methodProxy) throws Throwable {
-        return null;
+    public Object intercept(Object proxy, Method method, Object[] args, MethodProxy methodProxy) throws Throwable {
+        return AopProxyUtils.applyAdvices(target,method,args,matchAdvisors,proxy,beanFactory);
     }
 }
 ```
@@ -3736,7 +3733,7 @@ public class JDKDynamicAopProxy implements AopProxy, InvocationHandler {
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        return null;
+        return AopProxyUtils.applyAdvices(target,method,args,matchAdvisors,proxy,beanFactory);
     }
 }
 ```
@@ -3877,7 +3874,7 @@ public class AopAdviceChainInvocation {
 
     public Object invoke() throws Throwable {
         if (i < this.advices.size()) {
-            Object advice = this.advices.get(i);
+            Object advice = this.advices.get(i++);
             //判断通知类型属性哪种则执行对应的增强逻辑
             if (advice instanceof MethodBeforeAdvice) {
                 ((MethodBeforeAdvice) advice).before(method, args, target);
@@ -3912,6 +3909,7 @@ public class AopAdviceChainInvocation {
         }
     }
 }
+
 ```
 
 ##### AopProxy使用设计
@@ -3996,12 +3994,34 @@ public class DefaultAopProxyFactory implements AopProxyFactory {
 ##### AdvisorAutoProxyCreator优化
 
 > 在前面我们并没有具体实现`createProxy`方法的逻辑，现在有了代理部分的逻辑就可以通过AopProxyFactory完成选择和创建代理对象的工作
+>
+> - 另外，为了避免循环依赖，我们不能对Advisor和Advice类型的Bean做处理，所以`postProcessAfterInitialization`方法中需要加上相关逻辑判断
 
 ```java
 public class AdvisorAutoProxyCreator implements BeanPostProcessor, BeanFactoryAware {
   	//...省略其他方法
   
-		private Object createProxy(Object bean, String beanName, List<Advisor> advisors) {
+    @Override
+    public Object postProcessAfterInitialization(Object bean, String beanName) throws Exception {
+        //不能对Advisor和Advice类型的Bean做处理
+        if (bean instanceof Advisor || bean instanceof Advice) {
+            return bean;
+        }
+
+        //先判断Bean是否需要增强
+        List<Advisor> advisors = getMatchedAdvisors(bean, beanName);
+
+        //如果有匹配的切面，则代表需要创建代理实例实现增强
+        if (CollectionUtils.isNotEmpty(advisors)) {
+            bean = this.createProxy(bean, beanName, advisors);
+        }
+
+        return bean;
+    }
+    
+    //...省略其他方法
+    
+    private Object createProxy(Object bean, String beanName, List<Advisor> advisors) {
         //通过AopProxyFactory完成选择和创建代理对象的工作
         return AopProxyFactory.getDefaultAopProxyFactory().createAopProxy(bean, beanName, advisors, beanFactory).getProxy();
     }
@@ -4124,6 +4144,131 @@ public class MyMethodInterceptor implements MethodInterceptorAdvice {
 > 测试代码如下
 
 ```java
+import com.rhys.spring.DI.BeanReference;
+import com.rhys.spring.IoC.BeanPostProcessor;
+import com.rhys.spring.IoC.GenericBeanDefinition;
+import com.rhys.spring.IoC.PreBuildBeanFactory;
+import com.rhys.spring.aop.advisor.AspectJPointCutAdvisor;
+import com.rhys.spring.aop.impl.MyAfterReturningAdvice;
+import com.rhys.spring.aop.impl.MyBeforeAdvice;
+import com.rhys.spring.aop.impl.MyMethodInterceptor;
+import com.rhys.spring.aop.weaving.AdvisorAutoProxyCreator;
+import com.rhys.spring.demo.TestA;
+import com.rhys.spring.demo.TestB;
+import org.apache.commons.collections4.CollectionUtils;
+import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/3/28 3:34 AM
+ */
+public class AOPTest {
+    static PreBuildBeanFactory beanFactory = new PreBuildBeanFactory();
+
+    @Test
+    public void testAop() throws Exception {
+        GenericBeanDefinition beanDefinition = new GenericBeanDefinition();
+
+        //配置TestABean
+        beanDefinition.setBeanClass(TestA.class);
+        //定义构造参数依赖
+        List<Object> args = new ArrayList<>();
+        args.add("testABean");
+        //Bean依赖通过BeanReference处理
+        args.add(new BeanReference("bBean"));
+        //定义beanDefinition的构造参数列表
+        beanDefinition.setConstructorArgumentValues(args);
+        //注册BeanDefinition
+        beanFactory.registryBeanDefinition("aBean", beanDefinition);
+
+        //配置TestBBean
+        beanDefinition = new GenericBeanDefinition();
+        beanDefinition.setBeanClass(TestB.class);
+        args = new ArrayList<>();
+        args.add("testBBean");
+        beanDefinition.setConstructorArgumentValues(args);
+        beanFactory.registryBeanDefinition("bBean", beanDefinition);
+
+        //前置增强advice bean注册
+        beanDefinition = new GenericBeanDefinition();
+        beanDefinition.setBeanClass(MyBeforeAdvice.class);
+        beanFactory.registryBeanDefinition("myBeforeAdvice", beanDefinition);
+
+        //环绕增强advice bean注册
+        beanDefinition = new GenericBeanDefinition();
+        beanDefinition.setBeanClass(MyMethodInterceptor.class);
+        beanFactory.registryBeanDefinition("myMethodInterceptor", beanDefinition);
+
+        //后置增强advice bean注册
+        beanDefinition = new GenericBeanDefinition();
+        beanDefinition.setBeanClass(MyAfterReturningAdvice.class);
+        beanFactory.registryBeanDefinition("myAfterReturningAdvice", beanDefinition);
+
+
+        //注册Advisor（通知者/切面）bean
+        beanDefinition = new GenericBeanDefinition();
+        beanDefinition.setBeanClass(AspectJPointCutAdvisor.class);
+        args = new ArrayList<>();
+        args.add("myBeforeAdvice");
+        //对TestA类中的以test为前缀的所有方法进行前置增强
+        args.add("execution(* com.rhys.spring.demo.TestA.test*(..))");
+        beanDefinition.setConstructorArgumentValues(args);
+        beanFactory.registryBeanDefinition("aspectJPointCutAdvisor1", beanDefinition);
+
+        //环绕切面
+        beanDefinition = new GenericBeanDefinition();
+        beanDefinition.setBeanClass(AspectJPointCutAdvisor.class);
+        args = new ArrayList<>();
+        args.add("myMethodInterceptor");
+        //对TestA类中的以test为前缀的所有方法进行环绕增强
+        args.add("execution(* com.rhys.spring.demo.TestA.test*(..))");
+        beanDefinition.setConstructorArgumentValues(args);
+        beanFactory.registryBeanDefinition("aspectJPointCutAdvisor2", beanDefinition);
+
+        //后置切面
+        beanDefinition = new GenericBeanDefinition();
+        beanDefinition.setBeanClass(AspectJPointCutAdvisor.class);
+        args = new ArrayList<>();
+        args.add("myAfterReturningAdvice");
+        //对TestA类中的以test为前缀的所有方法进行后置增强
+        args.add("execution(* com.rhys.spring.demo.TestA.test*(..))");
+        beanDefinition.setConstructorArgumentValues(args);
+        beanFactory.registryBeanDefinition("aspectJPointCutAdvisor3", beanDefinition);
+
+
+
+        //配置AdvisorAutoProxyCreator的Bean
+        beanDefinition = new GenericBeanDefinition();
+        beanDefinition.setBeanClass(AdvisorAutoProxyCreator.class);
+        beanFactory.registryBeanDefinition("advisorAutoProxyCreator", beanDefinition);
+
+        //生成Type映射
+        beanFactory.registerTypeMap();
+
+        //注册完所需要的BeanDefinition后，且在生成普通Bean实例前，从BeanFactory中获得用户配置的所有BeanPostProcessor类型的Bean实例，注册到BeanFactory
+        List<BeanPostProcessor> beanPostProcessorList = beanFactory.getBeanListOfType(BeanPostProcessor.class);
+        if (!CollectionUtils.isEmpty(beanPostProcessorList)) {
+            for (BeanPostProcessor beanPostProcessor : beanPostProcessorList) {
+                beanFactory.registerBeanPostProcessor(beanPostProcessor);
+            }
+        }
+
+        //提前实例化Bean
+        beanFactory.instantiateSingleton();
+
+        TestA testA = (TestA) beanFactory.getBean("aBean");
+        testA.execute();
+        System.out.println("--------------------------------");
+
+        testA.testInit();
+        System.out.println("--------------------------------");
+
+        testA.testDestroy();
+    }
+}
 ```
 

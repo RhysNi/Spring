@@ -133,7 +133,7 @@ public interface BeanDefinition {
      * @param
      * @return java.lang.Object[]
      */
-    Object[] getConstructorArgumentRealValues();
+    Object[] getRealConstructorArgumentValues();
 
     /**
      * 用于BeanFactory获取工厂方法

@@ -45,7 +45,7 @@ public class AopAdviceChainInvocation {
 
     public Object invoke() throws Throwable {
         if (i < this.advices.size()) {
-            Object advice = this.advices.get(i);
+            Object advice = this.advices.get(i++);
             //判断通知类型属性哪种则执行对应的增强逻辑
             if (advice instanceof MethodBeforeAdvice) {
                 ((MethodBeforeAdvice) advice).before(method, args, target);
