@@ -4288,8 +4288,13 @@ public class AOPTest {
 
 > 解析指定的xml文件
 
-### 注解方式实现
+![image-20230418010630873](https://article.biliimg.com/bfs/article/c64a70328349a4242ccd9c9ee7eef63d787b5426.png)
+
+###  注解方式实现
 
 > - 定义注解
 > - 扫描、解析注解，完成Bean定义的注册
 
+
+
+![image-20230418021743722](https://article.biliimg.com/bfs/article/8aefd4a5740f6a1a314462014588a97eed9e94c1.png)
