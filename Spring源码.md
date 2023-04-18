@@ -4295,6 +4295,4 @@ public class AOPTest {
 > - 定义注解
 > - 扫描、解析注解，完成Bean定义的注册
 
-
-
 ![image-20230418021743722](https://article.biliimg.com/bfs/article/8aefd4a5740f6a1a314462014588a97eed9e94c1.png)
