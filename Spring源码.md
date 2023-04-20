@@ -4295,4 +4295,157 @@ public class AOPTest {
 > - 定义注解
 > - 扫描、解析注解，完成Bean定义的注册
 
-![image-20230418021743722](https://article.biliimg.com/bfs/article/8aefd4a5740f6a1a314462014588a97eed9e94c1.png)
+#### 定义注解类
+
+##### @Bean
+
+> 标注在工厂方法，用于生产工厂Bean
+
+```java
+import org.springframework.core.annotation.AliasFor;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/4/19 3:10 AM
+ */
+public @interface Bean {
+    @AliasFor("value")
+    String value() default "";
+    @AliasFor("name")
+    String name() default "";
+    String initMethod() default "";
+    String destroyMethod() default "";
+}
+```
+
+##### @Scope
+
+> BeanName Scope
+
+```java
+import com.rhys.spring.IoC.BeanDefinition;
+import java.lang.annotation.*;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/4/19 3:11 AM
+ */
+@Target({ElementType.TYPE, ElementType.ANNOTATION_TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+public @interface Scope {
+    String value() default BeanDefinition.SCOPE_SINGLETON;
+}
+```
+
+##### @Primary
+
+> BeanName Primary
+
+```java
+import java.lang.annotation.*;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/4/19 3:11 AM
+ */
+@Target({ElementType.TYPE, ElementType.METHOD})
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+public @interface Primary {
+}
+```
+
+##### @Qualifier
+
+```java
+import java.lang.annotation.*;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/4/19 3:11 AM
+ */
+
+@Target({ElementType.FIELD, ElementType.METHOD, ElementType.PARAMETER, ElementType.TYPE, ElementType.ANNOTATION_TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+@Inherited
+@Documented
+public @interface Qualifier {
+    String value() default "";
+}
+```
+
+##### @Component
+
+> 是否标注这个注解取决于类要不要配置为Bean
+
+```java
+import java.lang.annotation.*;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/4/19 3:11 AM
+ */
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+public @interface Component {
+    String value() default "";
+}
+```
+
+##### @Value
+
+> 构造参数依赖
+
+```java
+import java.lang.annotation.*;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/4/19 3:12 AM
+ */
+@Target({ ElementType.FIELD, ElementType.METHOD, ElementType.PARAMETER, ElementType.ANNOTATION_TYPE })
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+public @interface Value {
+    String value();
+}
+```
+
+##### @Autowired
+
+> 构造参数依赖
+
+```java
+import java.lang.annotation.*;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/4/19 3:10 AM
+ */
+@Target({ElementType.CONSTRUCTOR, ElementType.METHOD, ElementType.PARAMETER, ElementType.FIELD, ElementType.ANNOTATION_TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+public @interface Autowired {
+    boolean required() default true;
+}
+```
+
+#### 扫描解析注册
+
+##### 类扫描器
+
+![image-20230418021743722](https://article.biliimg.com/bfs/article/efae54c83df4a1e9aa5eb970d8bc162ae8563815.png)
+
+```java
+
+```
+
