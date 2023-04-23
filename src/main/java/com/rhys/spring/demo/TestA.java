@@ -1,16 +1,21 @@
 package com.rhys.spring.demo;
 
+import com.rhys.spring.context.annotation.*;
+
 /**
  * @author Rhys.Ni
  * @version 1.0
  * @date 2023/3/8 12:21 AM
  */
+@Component("testABean")
+@Primary
 public class TestA {
     private String name;
     private TestB testB;
 
 
-    public TestA(String name, TestB testB) {
+    @Autowired
+    public TestA(@Value("TestA_RhysNi") String name, @Qualifier("testBBean") TestB testB) {
         super();
         this.name = name;
         this.testB = testB;

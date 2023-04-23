@@ -1,8 +1,10 @@
 package com.rhys.spring.context;
 
 import com.rhys.spring.DI.BeanReference;
+import com.rhys.spring.DI.PropertyValue;
 import com.rhys.spring.IoC.BeanDefinitionRegistry;
 import com.rhys.spring.IoC.GenericBeanDefinition;
+import com.rhys.spring.IoC.exception.BeanDefinitionRegistryException;
 import com.rhys.spring.context.annotation.*;
 import com.sun.org.slf4j.internal.Logger;
 import com.sun.org.slf4j.internal.LoggerFactory;
@@ -12,9 +14,7 @@ import org.apache.commons.lang.StringUtils;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.io.File;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
+import java.lang.reflect.*;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -38,6 +38,18 @@ public class ClassPathBeanDefinitionScanner {
     }
 
 
+    /**
+     * <p>
+     * <b>扫描路径下class文件</b>
+     * </p >
+     *
+     * @param basePackages <span style="color:#e38b6b;">字段描述</span>
+     * @return <span style="color:#ffcb6b;"></span>
+     * @throws Exception <span style="color:#ffcb6b;">异常类</span>
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/4/23
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+     */
     public void scan(String... basePackages) {
         if (basePackages != null && basePackages.length > 0) {
             for (String basePackage : basePackages) {
@@ -54,6 +66,18 @@ public class ClassPathBeanDefinitionScanner {
         }
     }
 
+    /**
+     * <p>
+     * <b>解析类上注解</b>
+     * </p >
+     *
+     * @param files <span style="color:#e38b6b;">字段描述</span>
+     * @return <span style="color:#ffcb6b;"></span>
+     * @throws Exception <span style="color:#ffcb6b;">异常类</span>
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/4/23
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+     */
     private void readAndRegistryBeanDefinition(Set<File> files) {
         for (File file : files) {
             String className = getClassNameFromFile(file);
@@ -111,31 +135,51 @@ public class ClassPathBeanDefinitionScanner {
      * <p>
      * <b>处理属性依赖</b>
      * </p >
-     * @author <span style="color:#4585ff;">RhysNi</span>
-     * @date 2023/4/21
-     * @param clazz <span style="color:#e38b6b;">字段描述</span>
+     *
+     * @param clazz          <span style="color:#e38b6b;">字段描述</span>
      * @param beanDefinition <span style="color:#e38b6b;">字段描述</span>
      * @return <span style="color:#ffcb6b;"></span>
      * @throws Exception <span style="color:#ffcb6b;">异常类</span>
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/4/21
      * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
      */
     private void handlePropertyDI(Class<?> clazz, GenericBeanDefinition beanDefinition) {
+        List<PropertyValue> propertyValues = new ArrayList<>();
+        beanDefinition.setPropertyValues(propertyValues);
+
+        //在类属性上找@Autowired注解，找到了则优先处理Qualifier注解
+        //标注了@Qualifier则直接将qualifier设置的value作为beanName,否则直接将属性类型作为引用类型
+        for (Field field : clazz.getDeclaredFields()) {
+            if (field.isAnnotationPresent(Autowired.class)) {
+                BeanReference beanReference = null;
+                Qualifier qualifier = field.getAnnotation(Qualifier.class);
+                if (qualifier != null) {
+                    beanReference = new BeanReference(qualifier.value());
+                } else {
+                    beanReference = new BeanReference(field.getType());
+                }
+
+                propertyValues.add(new PropertyValue(field.getName(), beanReference));
+            }
+        }
     }
 
     /**
      * <p>
      * <b>处理方法上注解</b>
      * </p >
-     * @author <span style="color:#4585ff;">RhysNi</span>
-     * @date 2023/4/21
-     * @param clazz <span style="color:#e38b6b;">字段描述</span>
+     *
+     * @param clazz          <span style="color:#e38b6b;">字段描述</span>
      * @param beanDefinition <span style="color:#e38b6b;">字段描述</span>
-     * @param beanName <span style="color:#e38b6b;">字段描述</span>
+     * @param beanName       <span style="color:#e38b6b;">字段描述</span>
      * @return <span style="color:#ffcb6b;"></span>
      * @throws Exception <span style="color:#ffcb6b;">异常类</span>
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/4/21
      * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
      */
-    private void handleMethod(Class<?> clazz, GenericBeanDefinition beanDefinition, String beanName) {
+    private void handleMethod(Class<?> clazz, GenericBeanDefinition beanDefinition, String beanName) throws BeanDefinitionRegistryException {
         for (Method method : clazz.getMethods()) {
             if (method.isAnnotationPresent(PostConstruct.class)) {
                 beanDefinition.setInitMethodName(method.getName());
@@ -143,7 +187,7 @@ public class ClassPathBeanDefinitionScanner {
                 beanDefinition.setDestroyMethodName(method.getName());
             } else if (method.isAnnotationPresent(Bean.class)) {
                 //处理工厂方法
-                this.handleFactoryMethod(method,clazz,beanName);
+                this.handleFactoryMethod(method, clazz, beanName);
             }
         }
     }
@@ -152,16 +196,64 @@ public class ClassPathBeanDefinitionScanner {
      * <p>
      * <b>处理工厂方法</b>
      * </p >
-     * @author <span style="color:#4585ff;">RhysNi</span>
-     * @date 2023/4/21
-     * @param method <span style="color:#e38b6b;">字段描述</span>
-     * @param clazz <span style="color:#e38b6b;">字段描述</span>
+     *
+     * @param method   <span style="color:#e38b6b;">字段描述</span>
+     * @param clazz    <span style="color:#e38b6b;">字段描述</span>
      * @param beanName <span style="color:#e38b6b;">字段描述</span>
      * @return <span style="color:#ffcb6b;"></span>
      * @throws Exception <span style="color:#ffcb6b;">异常类</span>
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/4/21
      * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
      */
-    private void handleFactoryMethod(Method method, Class<?> clazz, String beanName) {
+    private void handleFactoryMethod(Method method, Class<?> clazz, String beanName) throws BeanDefinitionRegistryException {
+        GenericBeanDefinition beanDefinition = new GenericBeanDefinition();
+        //处理静态工厂
+
+        //静态工厂直接将class作为bean类型，反之则为成员工厂方法，需要指定beanName
+        if (Modifier.isStatic(method.getModifiers())) {
+            beanDefinition.setBeanClass(clazz);
+        } else {
+            beanDefinition.setFactoryBeanName(beanName);
+        }
+        beanDefinition.setFactoryMethod(method);
+        beanDefinition.setFactoryMethodName(method.getName());
+
+        //处理@Scope注解
+        Scope scope = method.getAnnotation(Scope.class);
+        if (scope != null) {
+            beanDefinition.setScope(scope.value());
+        }
+
+        //处理@Primary注解
+        Primary primary = method.getAnnotation(Primary.class);
+        if (primary != null) {
+            beanDefinition.setPrimary(true);
+        }
+
+        //处理@Bean注解
+        Bean bean = method.getAnnotation(Bean.class);
+        String beanNameStr = bean.name();
+        if (StringUtils.isBlank(beanNameStr)) {
+            beanNameStr = method.getName();
+        }
+
+        //处理初始化方法和销毁方法
+        String initMethod = bean.initMethod();
+        if (StringUtils.isNotBlank(initMethod)) {
+            beanDefinition.setInitMethodName(initMethod);
+        }
+
+        String destroyMethod = bean.destroyMethod();
+        if (StringUtils.isNotBlank(destroyMethod)) {
+            beanDefinition.setDestroyMethodName(destroyMethod);
+        }
+
+        //处理参数依赖
+        beanDefinition.setConstructorArgumentValues(this.handleMethodParameters(method.getParameters()));
+
+        //注册BeanDefinition
+        this.beanDefinitionRegistry.registryBeanDefinition(beanNameStr, beanDefinition);
     }
 
     /**
@@ -216,9 +308,9 @@ public class ClassPathBeanDefinitionScanner {
 
             //找@Qualifier注解,不为空则使用value的值为beanName，否则直接使用参数的类型去查找对应的Bean
             Qualifier qualifier = parameter.getAnnotation(Qualifier.class);
-            if (qualifier!=null) {
+            if (qualifier != null) {
                 args.add(new BeanReference(qualifier.value()));
-            }else {
+            } else {
                 args.add(new BeanReference(parameter.getType()));
             }
         }
