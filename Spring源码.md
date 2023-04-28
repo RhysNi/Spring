@@ -4274,7 +4274,7 @@ public class AOPTest {
 
 ## Bean定义配置化
 
-> 在上方AOP的测试中可以发现代码调用非常繁琐且冗余代码非常多,如果这样提供给用户使用的话，可想而知，用户体验将非常不好，需要用户操作设置的内容非常多，因此，我们需要给使用者提供一些便捷的方式例如`注解/XML配置文件`，让用户体验更好，配置更高效、
+> 在上方AOP的测试中可以发现代码调用非常繁琐且冗余代码非常多,如果这样提供给用户使用的话，可想而知，用户体验将非常不好，需要用户操作设置的内容非常多，因此，我们需要给使用者提供一些便捷的方式例如`注解/XML配置文件`，让用户体验更好，配置更高效
 
 ### XML配置文件实现
 
@@ -4441,11 +4441,15 @@ public @interface Autowired {
 
 #### 扫描解析注册
 
+![image.png](https://article.biliimg.com/bfs/article/edd9441cf88896d43202c438dc29f5c395ad7e7e.png)
+
 ##### 类扫描器
 
 ![image-20230418021743722](https://article.biliimg.com/bfs/article/efae54c83df4a1e9aa5eb970d8bc162ae8563815.png)
 
 ###### 扫描包下类
+
+![image-20230428133752868](C:\Users\admin\AppData\Roaming\Typora\typora-user-images\image-20230428133752868.png)
 
 ```java
 public void scan(String... basePackages) {
@@ -4501,6 +4505,8 @@ private void retrieveClassFiles(File dir, Set<File> fileSet) {
 ```
 
 ###### 解析类上注解
+
+![image.png](https://article.biliimg.com/bfs/article/07b9a8e69252439fa8494ce0f5a209156e2af811.png)
 
 ```java
 
@@ -5177,3 +5183,291 @@ public class ClassPathBeanDefinitionScanner {
 }
 ```
 
+### ApplicationContext上下文
+
+> 由于我们需要自动创建Bean，那么根据Xml配置类去解析创建根据注解去解析创建不好决策，所以需要提供一个`门面模式`来统一对外提供功能，所以需要一个`ApplicationContext上下文`
+
+![image-20230428134213919](https://article.biliimg.com/bfs/article/3d2b3af4800db84836a882015307fd773cee6527.png)
+
+#### ApplicationContext接口
+
+```java
+package com.rhys.spring.context;
+
+import com.rhys.spring.IoC.BeanFactory;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/4/19 3:22 AM
+ */
+public interface ApplicationContext extends BeanFactory {
+}
+
+```
+
+#### AbstractApplicationContext抽象类
+
+```java
+package com.rhys.spring.context;
+
+import com.rhys.spring.IoC.BeanPostProcessor;
+import com.rhys.spring.IoC.PreBuildBeanFactory;
+import org.apache.commons.collections4.CollectionUtils;
+
+import java.util.List;
+import java.util.Map;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/4/19 3:16 AM
+ */
+public abstract class AbstractApplicationContext implements ApplicationContext {
+    protected PreBuildBeanFactory beanFactory;
+
+    public AbstractApplicationContext() {
+        this.beanFactory = new PreBuildBeanFactory();
+    }
+
+    /**
+     * 注册Bean执行器
+     *
+     * @param
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/4/19
+     */
+    private void doRegistryBeanPostProcessor() throws Throwable {
+        List<BeanPostProcessor> beanPostProcessors = this.beanFactory.getBeanListOfType(BeanPostProcessor.class);
+        if (CollectionUtils.isNotEmpty(beanPostProcessors)) {
+            for (BeanPostProcessor beanPostProcessor : beanPostProcessors) {
+                this.beanFactory.registerBeanPostProcessor(beanPostProcessor);
+            }
+        }
+    }
+
+    protected void refresh() throws Throwable {
+        this.beanFactory.registerTypeMap();
+        this.doRegistryBeanPostProcessor();
+        this.beanFactory.instantiateSingleton();
+    }
+
+
+    /**
+     * 获取Bean实例
+     *
+     * @param beanName bean名称
+     * @return java.lang.Object
+     * @author Rhys.Ni
+     * @date 2023/2/16
+     */
+    @Override
+    public Object getBean(String beanName) throws Exception {
+        return this.beanFactory.getBean(beanName);
+    }
+
+    /**
+     * 根据beanName获取Type
+     *
+     * @param beanName
+     * @return java.lang.Class<?>
+     * @author Rhys.Ni
+     * @date 2023/3/1
+     */
+    @Override
+    public Class<?> getType(String beanName) throws Exception {
+        return this.beanFactory.getType(beanName);
+    }
+
+    /**
+     * 根据Type获取bean实例
+     *
+     * @param c
+     * @return T
+     * @author Rhys.Ni
+     * @date 2023/3/1
+     */
+    @Override
+    public <T> T getBean(Class<T> c) throws Exception {
+        return this.beanFactory.getBean(c);
+    }
+
+    /**
+     * 根据Type获取bean实例
+     *
+     * @param c
+     * @return java.util.Map<java.lang.String, T>
+     * @author Rhys.Ni
+     * @date 2023/3/1
+     */
+    @Override
+    public <T> Map<String, T> getBeanOfType(Class<T> c) throws Exception {
+        return this.beanFactory.getBeanOfType(c);
+    }
+
+    /**
+     * 根据Type获取bean集合
+     *
+     * @param c
+     * @return java.util.List<T>
+     * @author Rhys.Ni
+     * @date 2023/3/1
+     */
+    @Override
+    public <T> List<T> getBeanListOfType(Class<T> c) throws Exception {
+        return this.beanFactory.getBeanListOfType(c);
+    }
+
+    /**
+     * <p>
+     * <b>beanPostProcessor注册器</b>
+     * </p >
+     *
+     * @param beanPostProcessor <span style="color:#e38b6b;">bean执行器</span>
+     * @return <span style="color:#ffcb6b;"></span>
+     * @throws Exception <span style="color:#ffcb6b;">异常类</span>
+     * @author <span style="color:#4585ff;">RhysNi</span>
+     * @date 2023/3/27
+     * @CopyRight: <a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+     */
+    @Override
+    public void registerBeanPostProcessor(BeanPostProcessor beanPostProcessor) {
+        this.beanFactory.registerBeanPostProcessor(beanPostProcessor);
+    }
+}
+```
+
+#### AnnotationApplicationContext类
+
+```java
+package com.rhys.spring.context;
+
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/4/19 3:29 AM
+ */
+public class AnnotationApplicationContext extends AbstractApplicationContext {
+    public AnnotationApplicationContext(String... basePackages) throws Throwable {
+        //找到所有被@Component修饰的Java类的BeanDefinition
+        new ClassPathBeanDefinitionScanner(this.beanFactory).scan(basePackages);
+        super.refresh();
+    }
+}
+
+```
+
+#### XmlApplicationContext类
+
+> 后续实现
+
+### Bean注解测试
+
+> 在`TestA`类和`TestB`类加上相关注解如下
+
+```java
+package com.rhys.spring.demo;
+
+import com.rhys.spring.context.annotation.*;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/3/8 12:21 AM
+ */
+@Component("testABean")
+@Primary
+public class TestA {
+    private String name;
+    private TestB testB;
+
+
+    @Autowired
+    public TestA(@Value("TestA_RhysNi") String name, @Qualifier("testBBean") TestB testB) {
+        super();
+        this.name = name;
+        this.testB = testB;
+        System.out.println("调用了含有testB参数的构造方法");
+    }
+
+
+    public TestA(TestB testB) {
+        this.testB = testB;
+    }
+
+    public void execute() {
+        System.out.println("aBean execute:" + this.name + "\n testB.name:" + this.testB.getName());
+    }
+
+    public void testInit() {
+        System.out.println("aBean 执行了init()方法");
+    }
+
+    public void testDestroy() {
+        System.out.println("aBean 执行了destroy()方法");
+    }
+}
+```
+
+```java
+package com.rhys.spring.demo;
+
+import com.rhys.spring.context.annotation.Autowired;
+import com.rhys.spring.context.annotation.Component;
+import com.rhys.spring.context.annotation.Value;
+
+import java.lang.annotation.Retention;
+
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/3/8 12:21 AM
+ */
+@Component("testBBean")
+public class TestB {
+
+    @Value("TestB_RhysNi")
+    private String name;
+
+    @Autowired
+    public TestB(@Value("testBBean") String name) {
+        this.name = name;
+    }
+
+    public String getName() {
+        return name;
+    }
+}
+
+```
+
+> 在`TestA`和`TestB`类同级目录下创建`TestApplicationContext`测试类
+>
+> - 因为我们要扫描.class文件，如果放在Test资源目录下读取的路径会是错误的，在获取.class文件时截取路径会有问题，这个问题仅存在于本地，在环境上不会有问题
+
+```java
+package com.rhys.spring.demo;
+
+import com.rhys.spring.context.AnnotationApplicationContext;
+import com.rhys.spring.context.ApplicationContext;
+
+/**
+ * <p>
+ * <b>功能描述</b>
+ * </p >
+ *
+ * @author : RhysNi
+ * @version : v1.0
+ * @date : 2023/4/23 14:06
+ * @CopyRight :　<a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+ */
+public class TestApplicationContext {
+    public static void main(String[] args) throws Throwable {
+        ApplicationContext applicationContext = new AnnotationApplicationContext("com.rhys.spring.demo");
+        TestA testA = (TestA) applicationContext.getBean("testABean");
+        testA.execute();
+    }
+}
+```
