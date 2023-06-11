@@ -4,8 +4,6 @@ import com.rhys.spring.context.annotation.Autowired;
 import com.rhys.spring.context.annotation.Component;
 import com.rhys.spring.context.annotation.Value;
 
-import java.lang.annotation.Retention;
-
 /**
  * @author Rhys.Ni
  * @version 1.0

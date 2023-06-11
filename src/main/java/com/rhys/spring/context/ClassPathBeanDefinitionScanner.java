@@ -6,8 +6,7 @@ import com.rhys.spring.IoC.BeanDefinitionRegistry;
 import com.rhys.spring.IoC.GenericBeanDefinition;
 import com.rhys.spring.IoC.exception.BeanDefinitionRegistryException;
 import com.rhys.spring.context.annotation.*;
-import com.sun.org.slf4j.internal.Logger;
-import com.sun.org.slf4j.internal.LoggerFactory;
+
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 
@@ -27,7 +26,7 @@ import java.util.Set;
  */
 public class ClassPathBeanDefinitionScanner {
 
-    private static final Logger log = LoggerFactory.getLogger(ClassPathBeanDefinitionScanner.class);
+    // private static final Logger log = LoggerFactory.getLogger(ClassPathBeanDefinitionScanner.class);
     private BeanDefinitionRegistry beanDefinitionRegistry;
 
     private int classPathAbsLength = new File(ClassPathBeanDefinitionScanner.class.getResource("/").getPath()).getAbsolutePath().length();
@@ -126,7 +125,7 @@ public class ClassPathBeanDefinitionScanner {
                 }
 
             } catch (Exception e) {
-                log.error("Read And Registry BeanDefinition Exception:{}{}", e.getMessage(), e.getStackTrace());
+                // log.error("Read And Registry BeanDefinition Exception:{}{}", e.getMessage(), e.getStackTrace());
             }
         }
     }

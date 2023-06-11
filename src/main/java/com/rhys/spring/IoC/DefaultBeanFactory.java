@@ -5,8 +5,6 @@ import com.rhys.spring.DI.PropertyValue;
 import com.rhys.spring.IoC.exception.AliasRegistryException;
 import com.rhys.spring.IoC.exception.BeanDefinitionRegistryException;
 import com.rhys.spring.IoC.exception.PrimaryException;
-import com.sun.org.slf4j.internal.Logger;
-import com.sun.org.slf4j.internal.LoggerFactory;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 
@@ -25,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * @date 2023/2/16 11:19 PM
  */
 public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, Closeable {
-    private static final Logger logger = LoggerFactory.getLogger(DefaultBeanFactory.class);
+    // private static final Logger logger = LoggerFactory.getLogger(DefaultBeanFactory.class);
     protected Map<String, BeanDefinition> beanDefinitionMap = new ConcurrentHashMap<>(256);
     private Map<String, Object> singletonBeanMap = new ConcurrentHashMap<>(256);
     private Map<String, String[]> aliasMap = new ConcurrentHashMap<>(256);
@@ -672,7 +670,7 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
             //推断调用哪个构造方法创建实例
             return this.determineConstructor(beanDefinition, args).newInstance(args);
         } catch (SecurityException exception) {
-            logger.error("create instance error beanDefinition:{}, exception:{}", beanDefinition, exception);
+            // logger.error("create instance error beanDefinition:{}, exception:{}", beanDefinition, exception);
             throw exception;
         }
     }
@@ -846,7 +844,7 @@ public class DefaultBeanFactory implements BeanFactory, BeanDefinitionRegistry, 
                     Method method = instance.getClass().getMethod(beanDefinition.getDestroyMethodName(), null);
                     method.invoke(instance, null);
                 } catch (InvocationTargetException | NoSuchMethodException | IllegalAccessException e) {
-                    logger.error("bean destruction method named [" + beanName + "] failed to execute ! exception:{}", e);
+                    // logger.error("bean destruction method named [" + beanName + "] failed to execute ! exception:{}", e);
                 }
             }
         }

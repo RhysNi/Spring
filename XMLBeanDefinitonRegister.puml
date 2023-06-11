@@ -1,0 +1,14 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+autonumber
+
+GenericXmlApplicationContext -> XmlBeanDefinitionReader: loadBeanDefinitions
+XmlBeanDefinitionReader -> DefaultBeanDefinitionDocumentReader: registerBeanDefinitions
+DefaultBeanDefinitionDocumentReader -> BeanDefinitionParserDelegate: 在委托器中将解析得到的定义信息转换成BeanDefinition对象 \n BeanDefinitionHolder(beanDefinition, beanName, aliasesArray)
+DefaultBeanDefinitionDocumentReader -> BeanDefinitionRegistry: registerBeanDefinition(beanName, definitionHolder.getBeanDefinition())
+BeanDefinitionRegistry -> GenericApplicationContext: registerBeanDefinition
+GenericApplicationContext -> DefaultListableBeanFactory: registerBeanDefinition
+DefaultListableBeanFactory -> DefaultListableBeanFactory: 从beanDefinitionMap获取已注册定义信息 \n 没有且不存在正在创建的Bean则直接注册 \n 并缓存到beanDefinitionMap
+
+@enduml
