@@ -308,6 +308,48 @@ public class AnnotationMain {
 
 ##### this构造方法
 
-> 负责完成相关的配置处理f
+> 负责完成相关的配置处理
 
 <img src="https://article.biliimg.com/bfs/article/f1089e2eddd1698a646c8af0698a5bcfaebc663c.png" alt="image-20230612031845433" style="zoom:200%;" />
+
+###### ClassPathBeanDefinitionScanner
+
+> 创建了一个对应的扫描器
+
+###### AnnotatedBeanDefinitionReader
+
+> - 主要完成核心的`ConfigurationClassPostProcessor`的注入
+>
+> - `ConfigurationClassPostProcessor` 会完成`@Configuration`注解的相关解析
+
+![image-20230628215734249](https://article.biliimg.com/bfs/article/09e09206d9f953582aec6d9e6fbb16634451a8d4.png)
+
+> - 回去校验是否为配置类
+> - 不是则校验是否存在配置类注解,存在配置相关注解则缓存到`configCandidates`List中
+> - 最后如果没有找到`@Configuration`注解修饰的配置类则直接返回
+
+![image-20230628223922058](https://article.biliimg.com/bfs/article/432e2e38a8179fd1975476ded5ecccb563eb48af.png)
+
+##### 扫描实现
+
+![ClassPathBeanDefinitionScanner_scan.png](https://article.biliimg.com/bfs/article/4ef109e2e1dfa0bbbc8f9959cff42a402bea0fe3.png)
+
+> 通过声明的`ClassPathBeanDefinitionScanner`扫描器进行扫描
+
+![image-20230628225848352](https://article.biliimg.com/bfs/article/00ce2399265f473ef97c2481ebe0063d9e739cc3.png)
+
+> 会去找到所有的候选组件（Bean）并封装成Bean定义
+
+![image-20230628230417647](https://article.biliimg.com/bfs/article/85a16848fde89a9e2b2c3b8edc38ece74f74f53e.png)
+
+> 最后会检查Bean是否已经存在，不存在则注册相关Bean定义
+
+![image-20230628231141260](https://article.biliimg.com/bfs/article/6c22bf9f1af19ed74c7a3aebfc3e99eec1bf868b.png)
+
+##### @Configuration注解
+
+> @Configuration的解析是在refresh方法中来实现的
+
+![image-20230629000234819](https://article.biliimg.com/bfs/article/08ef0e1b1855131c1779c3cf44c78535ec424b54.png)
+
+![image-20230629000328418](https://article.biliimg.com/bfs/article/746ddbbf3ee7e8b9f0684ab60f3112bfe614c6fd.png)
