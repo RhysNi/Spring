@@ -85,7 +85,7 @@
 
 
 
-## Bean工厂创建
+## BeanFactory
 
 ### ApplicationContext实现类
 
@@ -122,7 +122,7 @@
 
 > 主要做了XML可刷新的具体实现
 
-## BeanDefinition两种方式
+## BeanDefinition生成的两种方式
 
 ### 基于XML方式
 
@@ -353,3 +353,102 @@ public class AnnotationMain {
 ![image-20230629000234819](https://article.biliimg.com/bfs/article/08ef0e1b1855131c1779c3cf44c78535ec424b54.png)
 
 ![image-20230629000328418](https://article.biliimg.com/bfs/article/746ddbbf3ee7e8b9f0684ab60f3112bfe614c6fd.png)
+
+### 小结
+
+> 通过上面的分析对Bean定义的扫描，解析和注册过程归纳为以下三点：
+>
+> - AnnotatedBeanDefinitionReader（reader）解析XML，完成xml方法配置的bean定义
+> - ClassPathBeanDefinitionScanner（scanner）扫描指定包下的类，找出带有@Component注解的类，注册成Bean定义
+> - `ConfigurationClassPostProcessor`处理带有`@Configuration`注解的类，解析它上面的注解，以及类中带有`@Bean` 注解,加入这些Bean的定义
+
+## BeanDefinition结构
+
+> 继承`属性访问器`和`元数据接口`，增加了Bean定义操作，实现了数据和操作解耦
+
+![BeanDefinition](https://article.biliimg.com/bfs/article/1d4d933bf20644c901a0d04593b04d4ac8c9b57d.png)
+
+#### BeanMetadataElement
+
+> 提供了获取数据源的方式，也就是可以知道Bean是来自哪个类
+
+![image-20230629224203447](https://article.biliimg.com/bfs/article/d2eead9f0cc242a4a80c80cf4b6eebcd01684939.png)
+
+##### BeanMetadataAttribute
+
+> 实现了`BeanMetadataElement`接口，增加了属性的名字和值
+
+![image-20230629224525735](https://article.biliimg.com/bfs/article/cc6856c505cc9e7dbeb1b09371d1bdc0838de1ba.png)
+
+![image-20230629224739434](https://article.biliimg.com/bfs/article/f31a428dc2c3d219e889da23505b5cf1f2759bf6.png)
+
+#### AttributeAccessor
+
+> 属性访问器，给Bean定义了增删改查属性的功能
+
+![image-20230629225108740](https://article.biliimg.com/bfs/article/7dd8bf7cd071765fe77607cc5e46a168ae8d03b0.png)
+
+##### AttributeAccessorSupport
+
+> 属性访问抽象实现类,内部定义了1个map来存放属性
+
+![image-20230630001154412](https://article.biliimg.com/bfs/article/c2249b5da383ebdaec7bcc40163e224b5411049e.png)
+
+![image-20230630001315480](https://article.biliimg.com/bfs/article/0a6ec869ea7e7a56d7d9e3df8d95fc193259ca3e.png)
+
+##### BeanMetadataAttributeAccessor
+
+> 元数据属性访问器
+>
+> 继承AttributeAccessorSupport具备属性访问功能，实现BeanMetadataElement具备获取元数据功能。
+>
+>  **AbstractBeanDefinition就继承于它，使得同时具有属性访问和元数据访问的功能 **
+
+![BeanMetadataAttributeAccessor](https://article.biliimg.com/bfs/article/018557d8cff6e37b92219caff528e534636d12d6.png)
+
+> 结合AbstractBeanDefinition的类图结构
+
+![AbstractBeanDefinition](https://article.biliimg.com/bfs/article/f3799100deee660f452b9ac36446895201a87955.png)
+
+## BeanDefinition继承体系
+
+### AnnotatedBeanDefinition
+
+> - 增加了2个方法，获取bean所在类的注解元数据和工厂方法元数据，这些数据在进行解析处理的时候需要用到
+>
+> - 该接口有三个具体实现，分别是`ScannedGenericBeanDefinition`、`AnnotatedGenericBeanDefinition`、`ConfigurationClassBeanDefinition`
+
+![image-20230630002918722](https://article.biliimg.com/bfs/article/b166c5f4d2f01ad78b4a9edd0fabccd42f01a2cf.png)
+
+### AbstractBeanDefinition
+
+> 我们可以称之为BeanDefinition的模板类, 具备了 Bean元数据的获取和属性相关的操作
+
+![AbstractBeanDefinition](https://article.biliimg.com/bfs/article/410085584e0dc56af40abd398747e707ae1d1335.png)
+
+#### 继承结构
+
+![AbstractBeanDefinition](https://article.biliimg.com/bfs/article/f8482d30827bf0d92ef66dfd0b0819dc41ac52ba.png)
+
+##### RootBeanDefinition
+
+> 根bean定义
+>
+> - 主要用在spring内部的bean定义、把不同类型的bean定义合并成RootBeanDefinition（getMergedLocalBeanDefinition方法）
+> - 没有实现BeanDefinition接口的设置获取父bean定义方法，不支持设置父子beanDefinition
+
+##### ConfigurationClassBeanDefinition
+
+> 用作ConfigurationClassPostProcessor解析过程中封装配置类的bean定义
+
+##### GenericBeanDefinition
+
+> 通用Bean的定义
+
+##### ScannedGenericBeanDefinition
+
+> `@ComponentScan`扫描的bean定义使用
+
+##### AnnotatedGenericBeanDefinition
+
+> GenericBeanDefinition 类的扩展，添加了对通过 AnnotatedBeanDefinition 接口公开的注释元数据的支持
