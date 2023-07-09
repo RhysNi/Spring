@@ -453,7 +453,7 @@ public class AnnotationMain {
 
 > GenericBeanDefinition 类的扩展，添加了对通过 AnnotatedBeanDefinition 接口公开的注释元数据的支持
 
-## 初始化源码分析
+## IoC初始化过程
 
 ### refresh方法
 
@@ -470,38 +470,44 @@ public class AnnotationMain {
 			ConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory();
 
 			// Prepare the bean factory for use in this context.
-      // 让子类实现刷新内部持有BeanFactory
+      // 对beanFactory做一些准备工作：注册一些context回调、bean等
 			prepareBeanFactory(beanFactory);
 
 			try {
 				// Allows post-processing of the bean factory in context subclasses.
-        // 对beanFactory做一些准备工作：注册一些context回调、bean等
+        // 调用留给子类来提供实现逻辑的 对BeanFactory进行处理的钩子方法
 				postProcessBeanFactory(beanFactory);
 
 				// Invoke factory processors registered as beans in the context.
-        // 调用留给子类来提供实现逻辑的并对BeanFactory进行处理的钩子方法
+        // 执行context中注册的 BeanFactoryPostProcessor bean
 				invokeBeanFactoryPostProcessors(beanFactory);
 
 				// Register bean processors that intercept bean creation.
-        // 执行context中注册的 BeanFactoryPostProcessor bean
+        // 注册BeanPostProcessor: 获得用户注册的BeanPostProcessor实例，注册到BeanFactory上
 				registerBeanPostProcessors(beanFactory);
 
 				// Initialize message source for this context.
+        // 初始化国际化资源
 				initMessageSource();
 
 				// Initialize event multicaster for this context.
+        // 初始化应用程序事件广播器
 				initApplicationEventMulticaster();
 
 				// Initialize other special beans in specific context subclasses.
+        // 初始化由子类来提供实现逻辑的钩子函数
 				onRefresh();
 
 				// Check for listener beans and register them.
-				registerListeners();
+        // 注册ApplicationListener: 获取用户注册的ApplicationListener Bean实例，注册到广播器上
+        registerListeners();
 
 				// Instantiate all remaining (non-lazy-init) singletons.
+        // 完成剩余的单例Bean的实例化
 				finishBeanFactoryInitialization(beanFactory);
 
 				// Last step: publish corresponding event.
+        // 发布对应的应用事件
 				finishRefresh();
 			}
 
@@ -530,7 +536,54 @@ public class AnnotationMain {
 	}
 ```
 
+#### prepareRefresh
 
+> 准备此上下文以进行刷新，设置其启动日期和活动标志，以及执行属性源的任何初始化。
+
+```java
+protected void prepareRefresh() {
+  // Switch to active.
+  // 设置相关的状态
+  this.startupDate = System.currentTimeMillis();
+  this.closed.set(false);
+  this.active.set(true);
+
+  if (logger.isDebugEnabled()) {
+    if (logger.isTraceEnabled()) {
+      logger.trace("Refreshing " + this);
+    }
+    else {
+      logger.debug("Refreshing " + getDisplayName());
+    }
+  }
+
+  // Initialize any placeholder property sources in the context environment.
+  // 初始化上下文环境中的任何占位符属性源
+  initPropertySources();
+
+  // Validate that all properties marked as required are resolvable:
+  // 验证所有标记为required的属性都是可解析的:
+  // see ConfigurablePropertyResolver#setRequiredProperties
+  getEnvironment().validateRequiredProperties();
+
+  // Store pre-refresh ApplicationListeners...
+  // 存储预刷新ApplicationListeners
+  if (this.earlyApplicationListeners == null) {
+    this.earlyApplicationListeners = new LinkedHashSet<>(this.applicationListeners);
+  }
+  else {
+    // Reset local application listeners to pre-refresh state.
+    // 将本地应用程序侦听器重置为预刷新状态
+    this.applicationListeners.clear();
+    this.applicationListeners.addAll(this.earlyApplicationListeners);
+  }
+
+  // Allow for the collection of early ApplicationEvents,
+  // to be published once the multicaster is available...
+  // 允许收集早期的ApplicationEvents，一旦广播器可用就发布…
+  this.earlyApplicationEvents = new LinkedHashSet<>();
+}
+```
 
 ### invokeBeanFactoryPostProcessors
 
