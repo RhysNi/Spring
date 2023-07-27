@@ -5,11 +5,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 public class BeanH {
 
-	@Autowired
-	private BeanE be;
+    // @Autowired
+    // private BeanE be;
 
-	public void doH() {
-		System.out.println("-----------" + this + " doH");
-		be.doSomething();
-	}
+    public void doH() {
+        System.out.println(this + " doH");
+        // be.doSomething();
+    }
 }

@@ -663,8 +663,6 @@ protected void prepareBeanFactory(ConfigurableListableBeanFactory beanFactory) {
 
 #### invokeBeanFactoryPostProcessors
 
-
-
 > 是BeanFactory的后置处理方法。核心是会完成注册的BeanFactoryPostProcessor接口和BeanDefinitionRegistryPostProcessor的相关逻辑
 
 ```java
@@ -888,6 +886,335 @@ public static void invokeBeanFactoryPostProcessors( ConfigurableListableBeanFact
 }
 ```
 
+##### 自定义BFP扩展
+
+> 基于前面的源码解析我们可以知道，在`invokeBeanFactoryPostProcessors`这边其实是可以暴露出来给我们一个扩展点，我们可以自定义`PostProcessor`,使其优先级在`ConfigurationClassPostProcessor`之后，因为这样就可以拿到`BeanDefinition`并且对其修改。我么可以通过`实现BeanDefinitionRegistryPostProcessor接口`对`BeanFactoryPostProcessor`进行扩展。
+
+> 首先我们先创建好对应的`三种不同类型的BeanFactoryPostProcessor`，在上面我们源码中出现很多次的分类操作还有印象吧，分别是`只实现了BeanDefinitionRegistryPostProcessor接口的普通BeanFactoryPostProcessor扩展`、`实现了Ordered接口支持排序的BeanFactoryPostProcessor扩展`、`实现了PriorityOrdered接口具备优先级的BeanFactoryPostProcessor扩展`
+
+![image-20230728020339532](https://article.biliimg.com/bfs/article/a45448866b3276c5341e000c7b6de8b14ad742f3.png)
+
+```java
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/7/28 2:01 AM
+ */
+@Component
+public class RhysBeanDefinitionRegistryPostProcessor1 implements BeanDefinitionRegistryPostProcessor {
+
+    /**
+     * Modify the application context's internal bean definition registry after its
+     * standard initialization. All regular bean definitions will have been loaded,
+     * but no beans will have been instantiated yet. This allows for adding further
+     * bean definitions before the next post-processing phase kicks in.
+     *
+     * @param registry the bean definition registry used by the application context
+     * @throws BeansException in case of errors
+     */
+    @Override
+    public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) throws BeansException {
+        System.out.println("执行了 - RhysBeanDefinitionRegistryPostProcessor1.postProcessBeanDefinitionRegistry()");
+    }
+
+    /**
+     * Modify the application context's internal bean factory after its standard
+     * initialization. All bean definitions will have been loaded, but no beans
+     * will have been instantiated yet. This allows for overriding or adding
+     * properties even to eager-initializing beans.
+     *
+     * @param beanFactory the bean factory used by the application context
+     * @throws BeansException in case of errors
+     */
+    @Override
+    public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
+        System.out.println("执行了 - RhysBeanDefinitionRegistryPostProcessor1.postProcessBeanFactory()");
+    }
+}
+```
+
+```java
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/7/28 2:01 AM
+ */
+@Component
+public class RhysBeanDefinitionRegistryPostProcessor2 implements BeanDefinitionRegistryPostProcessor, Ordered {
+    /**
+     * Modify the application context's internal bean definition registry after its
+     * standard initialization. All regular bean definitions will have been loaded,
+     * but no beans will have been instantiated yet. This allows for adding further
+     * bean definitions before the next post-processing phase kicks in.
+     *
+     * @param registry the bean definition registry used by the application context
+     * @throws BeansException in case of errors
+     */
+    @Override
+    public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) throws BeansException {
+        System.out.println("执行了 - RhysBeanDefinitionRegistryPostProcessor2.postProcessBeanDefinitionRegistry()");
+    }
+
+    /**
+     * Modify the application context's internal bean factory after its standard
+     * initialization. All bean definitions will have been loaded, but no beans
+     * will have been instantiated yet. This allows for overriding or adding
+     * properties even to eager-initializing beans.
+     *
+     * @param beanFactory the bean factory used by the application context
+     * @throws BeansException in case of errors
+     */
+    @Override
+    public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
+        System.out.println("执行了 - RhysBeanDefinitionRegistryPostProcessor2.postProcessBeanFactory()");
+    }
+
+    /**
+     * Get the order value of this object.
+     * <p>Higher values are interpreted as lower priority. As a consequence,
+     * the object with the lowest value has the highest priority (somewhat
+     * analogous to Servlet {@code load-on-startup} values).
+     * <p>Same order values will result in arbitrary sort positions for the
+     * affected objects.
+     *
+     * @return the order value
+     * @see #HIGHEST_PRECEDENCE
+     * @see #LOWEST_PRECEDENCE
+     */
+    @Override
+    public int getOrder() {
+        return 0;
+    }
+}
+```
+
+```java
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/7/28 2:01 AM
+ */
+@Component
+public class RhysBeanDefinitionRegistryPostProcessor3 implements BeanDefinitionRegistryPostProcessor, PriorityOrdered {
+    /**
+     * Modify the application context's internal bean definition registry after its
+     * standard initialization. All regular bean definitions will have been loaded,
+     * but no beans will have been instantiated yet. This allows for adding further
+     * bean definitions before the next post-processing phase kicks in.
+     *
+     * @param registry the bean definition registry used by the application context
+     * @throws BeansException in case of errors
+     */
+    @Override
+    public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) throws BeansException {
+        System.out.println("执行了 - RhysBeanDefinitionRegistryPostProcessor3.postProcessBeanDefinitionRegistry()");
+    }
+
+    /**
+     * Modify the application context's internal bean factory after its standard
+     * initialization. All bean definitions will have been loaded, but no beans
+     * will have been instantiated yet. This allows for overriding or adding
+     * properties even to eager-initializing beans.
+     *
+     * @param beanFactory the bean factory used by the application context
+     * @throws BeansException in case of errors
+     */
+    @Override
+    public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
+        System.out.println("执行了 - RhysBeanDefinitionRegistryPostProcessor3.postProcessBeanFactory()");
+    }
+
+    /**
+     * Get the order value of this object.
+     * <p>Higher values are interpreted as lower priority. As a consequence,
+     * the object with the lowest value has the highest priority (somewhat
+     * analogous to Servlet {@code load-on-startup} values).
+     * <p>Same order values will result in arbitrary sort positions for the
+     * affected objects.
+     *
+     * @return the order value
+     * @see #HIGHEST_PRECEDENCE
+     * @see #LOWEST_PRECEDENCE
+     */
+    @Override
+    public int getOrder() {
+        return 0;
+    }
+}
+```
+
+> 当我们执行以下代码，在`invokeBeanFactoryPostProcessors`的时候则会输出我们在自定义Bean后置处理器中的扩展逻辑
+
+```java
+@Configuration
+@ComponentScan("com.rhys")
+public class BPFTestMain {
+    public static void main(String[] args) {
+        ApplicationContext applicationContext = new AnnotationConfigApplicationContext(BPFTestMain.class);
+    }
+}
+```
+
+> 运行结果
+
+```sh
+执行了 - RhysBeanDefinitionRegistryPostProcessor3.postProcessBeanDefinitionRegistry()
+执行了 - RhysBeanDefinitionRegistryPostProcessor2.postProcessBeanDefinitionRegistry()
+执行了 - RhysBeanDefinitionRegistryPostProcessor1.postProcessBeanDefinitionRegistry()
+执行了 - RhysBeanDefinitionRegistryPostProcessor3.postProcessBeanFactory()
+执行了 - RhysBeanDefinitionRegistryPostProcessor2.postProcessBeanFactory()
+执行了 - RhysBeanDefinitionRegistryPostProcessor1.postProcessBeanFactory()
+```
+
+##### 补充知识点
+
+> 如果我们想在自定义的后置处理器中去讲某一个类型的`Bean`添加到IOC中，我们可以在这样做
+>
+> 首先有这样一个`BeanH`类
+
+```java
+public class BeanH {
+	public void doH() {
+    System.out.println(this + " doH");
+	}
+}
+```
+
+> 我们要在`RhysBeanDefinitionRegistryPostProcessor1`中通过`postProcessBeanDefinitionRegistry`中提供的`BeanDefinitionRegistry`手动将注册到IOC容器，并以"postProcessBeanDefinitionRegistry.beanH"作为beanName
+
+```java
+@Component
+public class RhysBeanDefinitionRegistryPostProcessor1 implements BeanDefinitionRegistryPostProcessor {
+
+    /**
+     * Modify the application context's internal bean definition registry after its
+     * standard initialization. All regular bean definitions will have been loaded,
+     * but no beans will have been instantiated yet. This allows for adding further
+     * bean definitions before the next post-processing phase kicks in.
+     *
+     * @param registry the bean definition registry used by the application context
+     * @throws BeansException in case of errors
+     */
+    @Override
+    public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) throws BeansException {
+        System.out.println("执行了 - RhysBeanDefinitionRegistryPostProcessor1.postProcessBeanDefinitionRegistry()");
+        RootBeanDefinition beanDefinition = new RootBeanDefinition(BeanH.class);
+        registry.registerBeanDefinition("postProcessBeanDefinitionRegistry.beanH", beanDefinition);
+    }
+
+    /**
+     * Modify the application context's internal bean factory after its standard
+     * initialization. All bean definitions will have been loaded, but no beans
+     * will have been instantiated yet. This allows for overriding or adding
+     * properties even to eager-initializing beans.
+     *
+     * @param beanFactory the bean factory used by the application context
+     * @throws BeansException in case of errors
+     */
+    @Override
+    public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
+        System.out.println("执行了 - RhysBeanDefinitionRegistryPostProcessor1.postProcessBeanFactory()");
+    }
+}
+```
+
+> 随后我执行以下代码则可以顺利从`IOC`中获取到对应的`BeanH`实例，并且可以调用`BeanH`中的`doH()`方法
+
+```java
+@Configuration
+@ComponentScan("com.rhys")
+public class BPFTestMain {
+    public static void main(String[] args) {
+        ApplicationContext applicationContext = new AnnotationConfigApplicationContext(BPFTestMain.class);
+        System.out.println("---------------------------------------------------------------------------");
+        BeanH beanH = (BeanH) applicationContext.getBean("postProcessBeanDefinitionRegistry.beanH");
+        beanH.doH();
+    }
+}
+```
+
+> 执行结果
+
+```shell
+执行了 - RhysBeanDefinitionRegistryPostProcessor3.postProcessBeanDefinitionRegistry()
+执行了 - RhysBeanDefinitionRegistryPostProcessor2.postProcessBeanDefinitionRegistry()
+执行了 - RhysBeanDefinitionRegistryPostProcessor1.postProcessBeanDefinitionRegistry()
+执行了 - RhysBeanDefinitionRegistryPostProcessor3.postProcessBeanFactory()
+执行了 - RhysBeanDefinitionRegistryPostProcessor2.postProcessBeanFactory()
+执行了 - RhysBeanDefinitionRegistryPostProcessor1.postProcessBeanFactory()
+---------------------------------------------------------------------------
+com.rhys.testSourceCode.config.annotation.BeanH@70be0a2b doH
+```
+
+> 如果我们还想对beanFactory中的某些Bean做处理还可以这样做】
+
+```java
+@Component
+public class RhysBeanDefinitionRegistryPostProcessor1 implements BeanDefinitionRegistryPostProcessor {
+
+    /**
+     * Modify the application context's internal bean definition registry after its
+     * standard initialization. All regular bean definitions will have been loaded,
+     * but no beans will have been instantiated yet. This allows for adding further
+     * bean definitions before the next post-processing phase kicks in.
+     *
+     * @param registry the bean definition registry used by the application context
+     * @throws BeansException in case of errors
+     */
+    @Override
+    public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) throws BeansException {
+        System.out.println("执行了 - RhysBeanDefinitionRegistryPostProcessor1.postProcessBeanDefinitionRegistry()");
+        RootBeanDefinition beanDefinition = new RootBeanDefinition(BeanH.class);
+        registry.registerBeanDefinition("postProcessBeanDefinitionRegistry.beanH", beanDefinition);
+    }
+
+    /**
+     * Modify the application context's internal bean factory after its standard
+     * initialization. All bean definitions will have been loaded, but no beans
+     * will have been instantiated yet. This allows for overriding or adding
+     * properties even to eager-initializing beans.
+     *
+     * @param beanFactory the bean factory used by the application context
+     * @throws BeansException in case of errors
+     */
+    @Override
+    public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
+        System.out.println("执行了 - RhysBeanDefinitionRegistryPostProcessor1.postProcessBeanFactory()");
+
+        System.out.println("---------------------------------------------------------------------------");
+        System.out.println("RhysBeanDefinitionRegistryPostProcessor1.postProcessBeanFactory.beanFactory.getBean");
+        BeanH beanH = (BeanH) beanFactory.getBean("postProcessBeanDefinitionRegistry.beanH");
+        beanH.doH();
+    }
+}
+```
+
+> 改写`BPFTestMain`执行类为以下
+
+```java
+@Configuration
+@ComponentScan("com.rhys")
+public class BPFTestMain {
+    public static void main(String[] args) {
+        ApplicationContext applicationContext = new AnnotationConfigApplicationContext(BPFTestMain.class);
+    }
+}
+```
+
+> 执行结果
+
+```shell
+执行了 - RhysBeanDefinitionRegistryPostProcessor3.postProcessBeanDefinitionRegistry()
+执行了 - RhysBeanDefinitionRegistryPostProcessor2.postProcessBeanDefinitionRegistry()
+执行了 - RhysBeanDefinitionRegistryPostProcessor1.postProcessBeanDefinitionRegistry()
+执行了 - RhysBeanDefinitionRegistryPostProcessor3.postProcessBeanFactory()
+执行了 - RhysBeanDefinitionRegistryPostProcessor2.postProcessBeanFactory()
+执行了 - RhysBeanDefinitionRegistryPostProcessor1.postProcessBeanFactory()
+---------------------------------------------------------------------------
+RhysBeanDefinitionRegistryPostProcessor1.postProcessBeanFactory.beanFactory.getBean
+com.rhys.testSourceCode.config.annotation.BeanH@c8e4bb0 doH
+```
+
 #### registerBeanPostProcessors
 
 > 实例化并注册所有 BeanPostProcessor bean
@@ -1101,6 +1428,45 @@ protected void registerListeners() {
     }
   }
 }
+```
+
+##### 自定义应用监听器
+
+> 我们创建一个自定义的应用监听器，看一下最终是怎么添加到容器中的
+
+```java
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/7/28 4:34 AM
+ */
+@Component
+public class RhysAppListener implements ApplicationListener<ApplicationEvent> {
+
+    /**
+     * Handle an application event.
+     *
+     * @param event the event to respond to
+     */
+    @Override
+    public void onApplicationEvent(ApplicationEvent event) {
+        System.out.println("RhysAppListener-接受到了应用事件： " + event);
+    }
+}
+```
+
+> 当启动应用执行到`registerListeners`方法之后，我们可以得到所有的应用监听器，这里我们只有一个自定义的
+
+![image-20230728044245110](https://article.biliimg.com/bfs/article/96aca60c416eeb7bb4a25d106b69d761885a1ea6.png)
+
+> 最总会调用到`AbstractApplicationEventMulticaster.addApplicationListenerBean`方法，当add完成后，`Set<String> applicationListenerBeans = new LinkedHashSet<>();`容器中就会存在我们这个自定义的应用监听器
+
+![image-20230728044638106](https://article.biliimg.com/bfs/article/16521c23f76a0d6996876c09d9d7724d70f75d6d.png)
+
+> 当应用执行完成后结果如下
+
+```shell
+RhysAppListener-接受到了应用事件： org.springframework.context.event.ContextRefreshedEvent[source=org.springframework.context.annotation.AnnotationConfigApplicationContext@49e4cb85, started on Fri Jul 28 04:38:55 CST 2023]
 ```
 
 #### finishBeanFactoryInitialization
