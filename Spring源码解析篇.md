@@ -1459,7 +1459,7 @@ public class RhysAppListener implements ApplicationListener<ApplicationEvent> {
 
 ![image-20230728044245110](https://article.biliimg.com/bfs/article/96aca60c416eeb7bb4a25d106b69d761885a1ea6.png)
 
-> 最总会调用到`AbstractApplicationEventMulticaster.addApplicationListenerBean`方法，当add完成后，`Set<String> applicationListenerBeans = new LinkedHashSet<>();`容器中就会存在我们这个自定义的应用监听器
+> 最终会调用到`AbstractApplicationEventMulticaster.addApplicationListenerBean`方法，当add完成后，`Set<String> applicationListenerBeans = new LinkedHashSet<>();`容器中就会存在我们这个自定义的应用监听器
 
 ![image-20230728044638106](https://article.biliimg.com/bfs/article/16521c23f76a0d6996876c09d9d7724d70f75d6d.png)
 
