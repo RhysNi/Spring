@@ -1073,9 +1073,9 @@ public class BPFTestMain {
 > 首先有这样一个`BeanH`类
 
 ```java
-public class BeanH {
-	public void doH() {
-    System.out.println(this + " doH");
+public class BeanR {
+	public void exc() {
+    System.out.println(this + " doR");
 	}
 }
 ```
@@ -1505,6 +1505,10 @@ protected void finishBeanFactoryInitialization(ConfigurableListableBeanFactory b
   beanFactory.preInstantiateSingletons();
 }
 ```
+
+##### preInstantiateSingletons
+
+> 单例Bean的提前暴露原理
 
 #### finishRefresh
 
