@@ -585,16 +585,57 @@ protected void prepareRefresh() {
 }
 ```
 
-#### obtainFreshBeanFactory
+#### <a id= "obtainFreshBeanFactory">obtainFreshBeanFactory </a>
 
 > 告诉子类刷新内部 Bean 工厂
 
 ```java
+@Override
+public abstract ConfigurableListableBeanFactory getBeanFactory() throws IllegalStateException;
+
 protected ConfigurableListableBeanFactory obtainFreshBeanFactory() {
     // 刷新容器
     refreshBeanFactory();
     return getBeanFactory();
 }
+```
+
+> 这边的`getBeanFactory`其实调用到了当前抽象类的默认子实现类`GenericApplicationContext`类中的`getBeanFactory`方法，而`getBeanFactory`方法的默认`IOC容器(BeanFactory实现)`就是`DefaultListableBeanFactory`
+
+![image-20230730232526640](https://article.biliimg.com/bfs/article/ca5aaec32c0a3f04688490f8e4606a8a8ce91211.png)
+
+```java
+public class GenericApplicationContext extends AbstractApplicationContext implements BeanDefinitionRegistry {
+
+	private final DefaultListableBeanFactory beanFactory;
+
+	@Nullable
+	private ResourceLoader resourceLoader;
+
+	private boolean customClassLoader = false;
+
+	private final AtomicBoolean refreshed = new AtomicBoolean();
+
+
+	/**
+	 * Create a new GenericApplicationContext.
+	 * @see #registerBeanDefinition
+	 * @see #refresh
+	 */
+	public GenericApplicationContext() {
+		this.beanFactory = new DefaultListableBeanFactory();
+	}
+
+		/**
+	 * Return the single internal BeanFactory held by this context
+	 * (as ConfigurableListableBeanFactory).
+	 */
+	@Override
+	public final ConfigurableListableBeanFactory getBeanFactory() {
+		return this.beanFactory;
+	}
+}
+
 ```
 
 #### prepareBeanFactory
@@ -1396,7 +1437,22 @@ protected void initApplicationEventMulticaster() {
 
 #### onRefresh
 
-> 留给子类来初始化其他的bean
+> 留给子类来初始化其他的bean，官方没有做默认实现,可以看到在代码作用域内打了一行备注翻译过来就是：“对于子类: 默认情况下什么都不做”
+
+![image-20230730234808272](https://article.biliimg.com/bfs/article/dda58e2c121f90664a96af5fd342b52593e17380.png)
+
+```java
+	/**
+	 * Template method which can be overridden to add context-specific refresh work.
+	 * Called on initialization of special beans, before instantiation of singletons.
+	 * <p>This implementation is empty.
+	 * @throws BeansException in case of errors
+	 * @see #refresh()
+	 */
+	protected void onRefresh() throws BeansException {
+		// For subclasses: do nothing by default.
+	}
+```
 
 #### registerListeners
 
@@ -1476,6 +1532,7 @@ RhysAppListener-接受到了应用事件： org.springframework.context.event.Co
 ```java
 protected void finishBeanFactoryInitialization(ConfigurableListableBeanFactory beanFactory) {
   // Initialize conversion service for this context.
+  // 为此上下文初始化转换服务
   if (beanFactory.containsBean(CONVERSION_SERVICE_BEAN_NAME) &&
       beanFactory.isTypeMatch(CONVERSION_SERVICE_BEAN_NAME, ConversionService.class)) {
     beanFactory.setConversionService(
@@ -1485,30 +1542,144 @@ protected void finishBeanFactoryInitialization(ConfigurableListableBeanFactory b
   // Register a default embedded value resolver if no bean post-processor
   // (such as a PropertyPlaceholderConfigurer bean) registered any before:
   // at this point, primarily for resolution in annotation attribute values.
+  
+  // 如果没有bean后处理器，注册一个默认的内嵌值解析器,(例如PropertyPlaceholderConfigurer bean)之前注册过: 此时，主要用于解析注释属性值。
   if (!beanFactory.hasEmbeddedValueResolver()) {
     beanFactory.addEmbeddedValueResolver(strVal -> getEnvironment().resolvePlaceholders(strVal));
   }
 
   // Initialize LoadTimeWeaverAware beans early to allow for registering their transformers early.
+  // 尽早初始化LoadTimeWeaverAware bean，以便尽早注册它们的转换器
   String[] weaverAwareNames = beanFactory.getBeanNamesForType(LoadTimeWeaverAware.class, false, false);
   for (String weaverAwareName : weaverAwareNames) {
     getBean(weaverAwareName);
   }
 
   // Stop using the temporary ClassLoader for type matching.
+  // 停止使用临时ClassLoader进行类型匹配
   beanFactory.setTempClassLoader(null);
 
   // Allow for caching all bean definition metadata, not expecting further changes.
+  // 允许缓存所有bean定义元数据，不期望进一步更改
   beanFactory.freezeConfiguration();
 
   // Instantiate all remaining (non-lazy-init) singletons.
+  // //实例化所有剩余的(非延迟初始化 )单例。
   beanFactory.preInstantiateSingletons();
 }
 ```
 
 ##### preInstantiateSingletons
 
-> 单例Bean的提前暴露原理
+###### 单例Bean的提前暴露
+
+> `preInstantiateSingletons`这个方法其实就是我们常说的`单例Bean的提前暴露`操作
+>
+> - 首先我们知道`Bean`对象的实例化是Bean工厂基于`BeanDefinition`来实现的
+> - 上面<a href="#obtainFreshBeanFactory">obtainFreshBeanFactory</a>方法中我们已经知道`BeanFactory`的默认实现就是`DefaultListableBeanFactory`，然后我们有关`BeanDefiniton`相关信息也是存储在`DefaultListableBeanFactory`的`beanDefinitionMap`容器中
+
+![image-20230730233811563](https://article.biliimg.com/bfs/article/8149a31ee14f19403b604ec31999d915862e8b49.png)
+
+###### Bean实例的创建过程
+
+> 这边我们只需要着重关注`单例Bean创建`的相关流程即可，因此我们通过`Debug`直接进入到`AbstractBeanFactory`抽象类的`doGetBean`方法中的部分逻辑，如下列举所示代码
+>
+> 主要调用流程如下图中所示：
+>
+> - 由`AbstractApplicationContext`抽象类中的`refresh`方法为入口
+> - 调用掉了`AbstractApplicationContext`抽象类的`preInstantiateSingletons`方法
+> - 然后调用了`AbstractBeanFactory`抽象工厂的`getBean`方法
+> - 最终该`getBean`调用了此类中的`doGetBean`方法
+
+![image-20230731011158615](https://article.biliimg.com/bfs/article/a5ea7c2d874dfcda82787527c800944f2a89a747.png)
+
+> - 这边判断如果是单例的话就会执行对应的创建逻辑
+> - 将`BeanName`和`一个负责创建Bean对象的回调函数`传递给 `getSingleton`方法，具体逻辑在以下`单例对象获取具体实现逻辑`逻辑中体现
+
+```java
+// Create bean instance.
+if (mbd.isSingleton()) {
+  sharedInstance = getSingleton(beanName, () -> {
+    try {
+      return createBean(beanName, mbd, args);
+    }
+    catch (BeansException ex) {
+      // Explicitly remove instance from singleton cache: It might have been put there
+      // eagerly by the creation process, to allow for circular reference resolution.
+      // Also remove any beans that received a temporary reference to the bean.
+      destroySingleton(beanName);
+      throw ex;
+    }
+  });
+  bean = getObjectForBeanInstance(sharedInstance, name, beanName, mbd);
+}
+```
+
+> 单例对象获取具体实现逻辑
+
+```java
+public Object getSingleton(String beanName, ObjectFactory<?> singletonFactory) {
+		Assert.notNull(beanName, "Bean name must not be null");
+		synchronized (this.singletonObjects) {
+      // 从缓存中根据beanName获取对象
+			Object singletonObject = this.singletonObjects.get(beanName);
+      // 缓存中不存在该对象时做相关的异常处理
+			if (singletonObject == null) {
+				if (this.singletonsCurrentlyInDestruction) {
+					throw new BeanCreationNotAllowedException(beanName,
+							"Singleton bean creation not allowed while singletons of this factory are in destruction " +
+							"(Do not request a bean from a BeanFactory in a destroy method implementation!)");
+				}
+				if (logger.isDebugEnabled()) {
+					logger.debug("Creating shared instance of singleton bean '" + beanName + "'");
+				}
+        // 在创建单例之前会去根据beanName挨个检查一下这个bean是否满足创建条件，不满足条件直接抛出异常
+        //（是否是当前正在创建检查中排除的bean，并且是不是当前正在创建的bean）
+				beforeSingletonCreation(beanName);
+        
+        // 表示是否为新的单例对象
+				boolean newSingleton = false;
+				boolean recordSuppressedExceptions = (this.suppressedExceptions == null);
+				if (recordSuppressedExceptions) {
+					this.suppressedExceptions = new LinkedHashSet<>();
+				}
+				try {
+          // 获取单例对象，这边 getObject() 其实调用的就是上面提到的回调函数，函数中逻辑则会执行createBean(beanName, mbd, args)
+					singletonObject = singletonFactory.getObject();
+					newSingleton = true;
+				}
+				catch (IllegalStateException ex) {
+					// Has the singleton object implicitly appeared in the meantime ->
+					// if yes, proceed with it since the exception indicates that state.
+					singletonObject = this.singletonObjects.get(beanName);
+					if (singletonObject == null) {
+						throw ex;
+					}
+				}
+				catch (BeanCreationException ex) {
+					if (recordSuppressedExceptions) {
+						for (Exception suppressedException : this.suppressedExceptions) {
+							ex.addRelatedCause(suppressedException);
+						}
+					}
+					throw ex;
+				}
+				finally {
+					if (recordSuppressedExceptions) {
+						this.suppressedExceptions = null;
+					}
+					afterSingletonCreation(beanName);
+				}
+				if (newSingleton) {
+					addSingleton(beanName, singletonObject);
+				}
+			}
+			return singletonObject;
+		}
+	}
+```
+
+
 
 #### finishRefresh
 
