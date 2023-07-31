@@ -538,7 +538,7 @@ public class AnnotationMain {
 
 #### prepareRefresh
 
-> 准备此上下文以进行刷新，设置其启动日期和活动标志，以及执行属性源的任何初始化。
+> 准备此上下文以进行刷新，设置其启动日期和活动标志，以及执行所有环境参数的初始化。
 
 ```java
 protected void prepareRefresh() {
@@ -588,6 +588,11 @@ protected void prepareRefresh() {
 #### <a id= "obtainFreshBeanFactory">obtainFreshBeanFactory </a>
 
 > 告诉子类刷新内部 Bean 工厂
+>
+> - 主要负责完成Bean工厂的刷新
+> - 如果是基于配置文件的方式来定义的Bean，则会完成对应XML文件的加载解析，BeanDefinition对象的创建，以及通过BeanDefinitijonRegistry将BeanDefinition和BeanFactory关联起来
+> - 如果是`@Compoent`注解修饰的类也会一并处理并添加到`BeanFactory`中
+> - 🔈有一点要注意的是：虽然处理了`@Compoent`注解修饰的类，但是并没有处理`@Configuration`修饰的类 
 
 ```java
 @Override
@@ -635,7 +640,6 @@ public class GenericApplicationContext extends AbstractApplicationContext implem
 		return this.beanFactory;
 	}
 }
-
 ```
 
 #### prepareBeanFactory
@@ -705,6 +709,9 @@ protected void prepareBeanFactory(ConfigurableListableBeanFactory beanFactory) {
 #### invokeBeanFactoryPostProcessors
 
 > 是BeanFactory的后置处理方法。核心是会完成注册的BeanFactoryPostProcessor接口和BeanDefinitionRegistryPostProcessor的相关逻辑
+>
+> - 由于`BeanFactoryPostProcessor`接口中没有提供`BeanDefinition`注册的能力，因此拓展了一个`BeanDefinitionRegistryPostProcessor`接口作为`BeanFactoryPostProcessor`的子接口，同时对外提供了一个`postProcessBeanDefinitionRegistry`方法，带入一个`BeanDefinitionRegistry`，也就是拓展了一个注册的功能，负责将一些特定的`BeanDefinition`通过`BeanDefinitionRegistry`注册到`BeanFactory`容器中
+> - 那么具体的注册逻辑其实就是调用到`ConfigurationClassPostProcessor`类中的`processConfigBeanDefinitions`方法，这里面主要就是处理`@Configuration`修饰的类，包括
 
 ```java
 protected void invokeBeanFactoryPostProcessors(ConfigurableListableBeanFactory beanFactory) {
@@ -1619,67 +1626,65 @@ if (mbd.isSingleton()) {
 
 ```java
 public Object getSingleton(String beanName, ObjectFactory<?> singletonFactory) {
-		Assert.notNull(beanName, "Bean name must not be null");
-		synchronized (this.singletonObjects) {
-      // 从缓存中根据beanName获取对象
-			Object singletonObject = this.singletonObjects.get(beanName);
-      // 缓存中不存在该对象时做相关的异常处理
-			if (singletonObject == null) {
-				if (this.singletonsCurrentlyInDestruction) {
-					throw new BeanCreationNotAllowedException(beanName,
-							"Singleton bean creation not allowed while singletons of this factory are in destruction " +
-							"(Do not request a bean from a BeanFactory in a destroy method implementation!)");
-				}
-				if (logger.isDebugEnabled()) {
-					logger.debug("Creating shared instance of singleton bean '" + beanName + "'");
-				}
-        // 在创建单例之前会去根据beanName挨个检查一下这个bean是否满足创建条件，不满足条件直接抛出异常
-        //（是否是当前正在创建检查中排除的bean，并且是不是当前正在创建的bean）
-				beforeSingletonCreation(beanName);
-        
-        // 表示是否为新的单例对象
-				boolean newSingleton = false;
-				boolean recordSuppressedExceptions = (this.suppressedExceptions == null);
-				if (recordSuppressedExceptions) {
-					this.suppressedExceptions = new LinkedHashSet<>();
-				}
-				try {
-          // 获取单例对象，这边 getObject() 其实调用的就是上面提到的回调函数，函数中逻辑则会执行createBean(beanName, mbd, args)
-					singletonObject = singletonFactory.getObject();
-					newSingleton = true;
-				}
-				catch (IllegalStateException ex) {
-					// Has the singleton object implicitly appeared in the meantime ->
-					// if yes, proceed with it since the exception indicates that state.
-					singletonObject = this.singletonObjects.get(beanName);
-					if (singletonObject == null) {
-						throw ex;
-					}
-				}
-				catch (BeanCreationException ex) {
-					if (recordSuppressedExceptions) {
-						for (Exception suppressedException : this.suppressedExceptions) {
-							ex.addRelatedCause(suppressedException);
-						}
-					}
-					throw ex;
-				}
-				finally {
-					if (recordSuppressedExceptions) {
-						this.suppressedExceptions = null;
-					}
-					afterSingletonCreation(beanName);
-				}
-				if (newSingleton) {
-					addSingleton(beanName, singletonObject);
-				}
-			}
-			return singletonObject;
-		}
-	}
+    Assert.notNull(beanName, "Bean name must not be null");
+    synchronized (this.singletonObjects) {
+        // 从缓存中根据beanName获取对象
+        Object singletonObject = this.singletonObjects.get(beanName);
+        // 缓存中不存在该对象时做相关的异常处理
+        if (singletonObject == null) {
+            if (this.singletonsCurrentlyInDestruction) {
+                throw new BeanCreationNotAllowedException(beanName,
+                "Singleton bean creation not allowed while singletons of this factory are in destruction " +
+                "(Do not request a bean from a BeanFactory in a destroy method implementation!)");
+            }
+            if (logger.isDebugEnabled()) {
+                logger.debug("Creating shared instance of singleton bean '" + beanName + "'");
+            }
+            // 在创建单例之前会去根据beanName挨个检查一下这个bean是否满足创建条件，不满足条件直接抛出异常
+            //（是否是当前正在创建检查中排除的bean，并且是不是当前正在创建的bean）
+            beforeSingletonCreation(beanName);
+
+            // 表示是否为新的单例对象
+            boolean newSingleton = false;
+            boolean recordSuppressedExceptions = (this.suppressedExceptions == null);
+            if (recordSuppressedExceptions) {
+                this.suppressedExceptions = new LinkedHashSet<>();
+            }
+            try {
+                // 获取单例对象，这边 getObject() 其实调用的就是上面提到的回调函数，函数中逻辑则会执行createBean(beanName, mbd, args)
+                singletonObject = singletonFactory.getObject();
+                newSingleton = true;
+            }
+            catch (IllegalStateException ex) {
+                // Has the singleton object implicitly appeared in the meantime ->
+                // if yes, proceed with it since the exception indicates that state.
+                singletonObject = this.singletonObjects.get(beanName);
+                if (singletonObject == null) {
+                    throw ex;
+                }
+            }
+            catch (BeanCreationException ex) {
+                if (recordSuppressedExceptions) {
+                    for (Exception suppressedException : this.suppressedExceptions) {
+                        ex.addRelatedCause(suppressedException);
+                    }
+                }
+                throw ex;
+            }
+            finally {
+                if (recordSuppressedExceptions) {
+                    this.suppressedExceptions = null;
+                }
+                afterSingletonCreation(beanName);
+            }
+            if (newSingleton) {
+                addSingleton(beanName, singletonObject);
+            }
+        }
+        return singletonObject;
+    }
+}
 ```
-
-
 
 #### finishRefresh
 
