@@ -19,9 +19,14 @@ import org.springframework.context.annotation.Configuration;
 @ComponentScan("com.rhys")
 public class BPFTestMain {
     public static void main(String[] args) {
-        ApplicationContext applicationContext = new AnnotationConfigApplicationContext(BPFTestMain.class);
+        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(BPFTestMain.class);
         // System.out.println("---------------------------------------------------------------------------");
-        // BeanH beanH = (BeanH) applicationContext.getBean("postProcessBeanDefinitionRegistry.beanH");
+        BeanH beanH = (BeanH) applicationContext.getBean("beanH");
         // beanH.doH();
+
+        // 主动触发对应事件发布和监听执行
+        applicationContext.start();
+        applicationContext.stop();
+        applicationContext.close();
     }
 }
