@@ -1898,43 +1898,6 @@ public class BPFTestMain {
 }
 ```
 
-
-
-> - doCreateBean:555, AbstractAutowireCapableBeanFactory (org.springframework.beans.factory.support)
-> -  createBeanInstance:1197, AbstractAutowireCapableBeanFactory (org.springframework.beans.factory.support)
-> - instantiateBean:1295, AbstractAutowireCapableBeanFactory (org.springframework.beans.factory.support)
-> - instantiate:87, SimpleInstantiationStrategy (org.springframework.beans.factory.support)
-> - instantiateClass:172, BeanUtils (org.springframework.beans)
-> - newInstance:410, Constructor (java.lang.reflect)
-
-
-
-![image-20230802041543140](https://article.biliimg.com/bfs/article/04f32f109e1aa6dce0a53245f64c47697d1467f7.png)
-
-```java
-@CallerSensitive
-public T newInstance(Object ... initargs)
-  throws InstantiationException, IllegalAccessException,
-IllegalArgumentException, InvocationTargetException
-{
-  if (!override) {
-    if (!Reflection.quickCheckMemberAccess(clazz, modifiers)) {
-      Class<?> caller = Reflection.getCallerClass();
-      checkAccess(caller, clazz, null, modifiers);
-    }
-  }
-  if ((clazz.getModifiers() & Modifier.ENUM) != 0)
-    throw new IllegalArgumentException("Cannot reflectively create enum objects");
-  ConstructorAccessor ca = constructorAccessor;   // read volatile
-  if (ca == null) {
-    ca = acquireConstructorAccessor();
-  }
-  @SuppressWarnings("unchecked")
-  T inst = (T) ca.newInstance(initargs);
-  return inst;
-}
-```
-
 ###### 单例对象的销毁
 
 > 我们对测试类进行修改如下
@@ -2085,9 +2048,7 @@ public void registerShutdownHook() {
 }
 ```
 
-
-
-###### 原型创建方式
+###### <a id ="protoTypeCreation">原型创建方式</a>
 
 > 原型对象不需要Bean工厂提供销毁方式，当根不可达的时候,GC就会自动进行清理了，所以不用进行手动销毁。因为原型对象创建效率高，可能一次性创建相当多的对象，如果对这些对象进行管理就不能被GC掉，需要等到手动销毁，那这个期间极有可能造成大量资源浪费，造成内存泄漏
 
@@ -2105,6 +2066,51 @@ else if (mbd.isPrototype()) {
   bean = getObjectForBeanInstance(prototypeInstance, name, beanName, mbd);
 }
 ```
+
+> `beforePrototypeCreation`源码
+>
+> 这里的`ThreadLocal<Object> prototypesCurrentlyInCreation = new NamedThreadLocal<>("Prototype beans currently in creation");`就是使用`ThreadLocal`来保证并发下各线程逻辑互不影响
+
+```java
+protected void beforePrototypeCreation(String beanName) {
+  	//这里面主要是对不同情况下的`prototypesCurrentlyInCreation`添加操作
+		Object curVal = this.prototypesCurrentlyInCreation.get();
+		if (curVal == null) {
+			this.prototypesCurrentlyInCreation.set(beanName);
+		}
+		else if (curVal instanceof String) {
+			Set<String> beanNameSet = new HashSet<>(2);
+			beanNameSet.add((String) curVal);
+			beanNameSet.add(beanName);
+			this.prototypesCurrentlyInCreation.set(beanNameSet);
+		}
+		else {
+			Set<String> beanNameSet = (Set<String>) curVal;
+			beanNameSet.add(beanName);
+		}
+	}
+```
+
+> `afterPrototypeCreation`源码
+
+```java
+	protected void afterPrototypeCreation(String beanName) {
+    //这里面主要是对不同情况下的`prototypesCurrentlyInCreation`移除操作
+		Object curVal = this.prototypesCurrentlyInCreation.get();
+		if (curVal instanceof String) {
+			this.prototypesCurrentlyInCreation.remove();
+		}
+		else if (curVal instanceof Set) {
+			Set<String> beanNameSet = (Set<String>) curVal;
+			beanNameSet.remove(beanName);
+			if (beanNameSet.isEmpty()) {
+				this.prototypesCurrentlyInCreation.remove();
+			}
+		}
+	}
+```
+
+
 
 #### finishRefresh
 
@@ -2196,7 +2202,9 @@ public class TestB {
 }
 ```
 
-#### 多个构造方法的选择
+#### 构造注入
+
+##### 多个构造方法的选择
 
 > 由于Spring生成Bean实例的时候`默认调用无参构造方法创建实例`，我们验证一下，新建一个测试用的类做为Bean，其中还有两个属性，给这个类声明两个构造方法，但是没提供无参构造
 
@@ -2249,7 +2257,7 @@ public class BeanS {
 >
 > - `java.lang.NoSuchMethodException: com.rhys.testSourceCode.config.base.BeanR.<init>()`
 
-![image-20230807143343971](C:\Users\admin\AppData\Roaming\Typora\typora-user-images\image-20230807143343971.png)
+![image-20230807231444528](https://article.biliimg.com/bfs/article/fa0318d99851bb62ddda5c91efa4fbd270b1317d.png)
 
 > 那我们稍作优化，指定一个构造注入，测试类如下
 >
@@ -2277,7 +2285,7 @@ public class BeanR {
 
 > 再次运行测试结果如下
 
-![image-20230807150418049](C:\Users\admin\AppData\Roaming\Typora\typora-user-images\image-20230807150418049.png)
+![image-20230807231551190](https://article.biliimg.com/bfs/article/77daf45fe6095d6cb1aa4091d80a3eb401f5da32.png)
 
 > 这里注意，虽然我们存在两个有参构造，但是我们只指定其中一个有参构造，如果我们同时指定两个构造，那在最终选择构造器的时候就会报错了
 >
@@ -2320,11 +2328,15 @@ public class BeanR {
 >
 > 代表`public BeanR(BeanY beanY, BeanS beanS) {}`这个构造上的`自动装配标记`是无效的,因为已经存在一个`带有'required' Autowired注解的构造函数`，也就是识别到了咱们指定了多个构造函数，不知道用哪个去进行实例创建了，类似于`@Primary`注解，只能指定一个优先级
 
-![image-20230807151003446](C:\Users\admin\AppData\Roaming\Typora\typora-user-images\image-20230807151003446.png)
+![image-20230807231654449](https://article.biliimg.com/bfs/article/3ee584fab14b917c3784e74124dfebbf97a74fd6.png)
 
 > <a id="createBeanInstance">构造注入锚点</a>
 >
 > 这里其实就涉及到了相关自动装配，多构造选择等逻辑处理了
+>
+> 主要调用链路如下
+
+![image-20230802041543140](https://article.biliimg.com/bfs/article/04f32f109e1aa6dce0a53245f64c47697d1467f7.png)
 
 ```java
 protected BeanWrapper createBeanInstance(String beanName, RootBeanDefinition mbd, @Nullable Object[] args) {
@@ -2360,7 +2372,7 @@ protected BeanWrapper createBeanInstance(String beanName, RootBeanDefinition mbd
   // 是否需要自动装配
   boolean autowireNecessary = false;
  
-  // 无数情况下，处理`resolved`标志和`autowireNecessary`标志
+  // 无参情况下，处理`resolved`标志和`autowireNecessary`标志
   if (args == null) {
     synchronized (mbd.constructorArgumentLock) {
       // 因为一个类可能有多个构造函数，所以需要根据配置文件中配置的参数或传入的参数来确定最终调用的构造函数
@@ -2402,7 +2414,7 @@ protected BeanWrapper createBeanInstance(String beanName, RootBeanDefinition mbd
 		// int AUTOWIRE_CONSTRUCTOR = 3; 自动生成可满足的最贪婪的构造函数(涉及解析适当的构造函数)
     // int AUTOWIRE_AUTODETECT = 4; 指示通过对bean类的自省确定适当的自动装配策略。不过从Spring 3.0开始已经弃用: 如果正在使用混合自动装配																			策略，需要选择基于注解的自动装配，以便更清晰地划分自动装配需求
 		
-    // 满足（构造函数不为空||自动装配模式为AUTOWIRE_CONSTRUCTOR||该Bean定义了构造函数参数值||参数列表不为空）任何一个条件即可根据有参构造注入
+    // 满足（构造函数不为空||自动装配模式为AUTOWIRE_CONSTRUCTOR||该BeanDfinition中定义了构造函数参数值||参数列表不为空）任何一个条件即可根    		   据有参构造注入
     return autowireConstructor(beanName, mbd, ctors, args);
   }
 
@@ -2430,7 +2442,7 @@ protected BeanWrapper autowireConstructor(
 }
 ```
 
-> 进入构造解析器的`autowireConstructor`方法
+> 进入构造解析器的`ConstructorResolver.autowireConstructor`方法
 
 ```java
 public BeanWrapper autowireConstructor(String beanName, RootBeanDefinition mbd,
@@ -2649,4 +2661,406 @@ public BeanWrapper autowireConstructor(String beanName, RootBeanDefinition mbd,
 > 阅读完以上源码逻辑，大概了解了构造函数的选择其实是由权重对比得出应该使用什么构造函数以及参数列表的，
 >
 > 那么就剩下`instantiate(beanName, mbd, constructorToUse, argsToUse)`初始化实例的逻辑没有了解了，这里面用到了实例化策略，也就是策略模式
+
+```java
+private Object instantiate(String beanName, RootBeanDefinition mbd, Constructor<?> constructorToUse, Object[] argsToUse) {
+  try {
+    // 获取用于创建 Bean 实例的实例化策略
+    InstantiationStrategy strategy = this.beanFactory.getInstantiationStrategy();
+    // 获取系统安全管理器 默认为 RuntimePermission("setIO")
+    if (System.getSecurityManager() != null) {
+      // 使用访问控制器的特权操作进行实例创建，保证该操作是使用`调用方的保护域拥有的权限`与`指定AccessControlContext表示的域拥有的权限`交集执					 行的(权限控制，如果安装了安全管理器，并且指定的 AccessControlContext 不是由系统代码创建的，并且调用方的 ProtectionDomain 尚未被授				 予“createAccessControlContext”SecurityPermission，则执行该操作时没有权限)
+      return AccessController.doPrivileged((PrivilegedAction<Object>) () ->
+                                           strategy.instantiate(mbd, beanName, this.beanFactory, constructorToUse, 						                                         argsToUse),
+                                           this.beanFactory.getAccessControlContext());
+    }
+    else {
+      return strategy.instantiate(mbd, beanName, this.beanFactory, constructorToUse, argsToUse);
+    }
+  }
+  catch (Throwable ex) {
+    throw new BeanCreationException(mbd.getResourceDescription(), beanName,"Bean instantiation via constructor failed", ex);
+  }
+}
+```
+
+> `SimpleInstantiationStrategy.instantiate`源码
+
+```java
+@Override
+public Object instantiate(RootBeanDefinition bd, @Nullable String beanName, BeanFactory owner,
+                          final Constructor<?> ctor, Object... args) {
+	// 判断是否存在方法覆盖
+  if (!bd.hasMethodOverrides()) {
+    // 权限控制
+    if (System.getSecurityManager() != null) {
+      // use own privileged to change accessibility (when security is on)
+      AccessController.doPrivileged((PrivilegedAction<Object>) () -> {
+        // 将对应构造的访问标志设置为true,在反射时禁止Java语言访问检查
+        ReflectionUtils.makeAccessible(ctor);
+        return null;
+      });
+    }
+    return BeanUtils.instantiateClass(ctor, args);
+  }
+  else {
+    return instantiateWithMethodInjection(bd, beanName, owner, ctor, args);
+  }
+}
+```
+
+> `BeanUtils.instantiateClass`源码
+
+```java
+public static <T> T instantiateClass(Constructor<T> ctor, Object... args) throws BeanInstantiationException {
+  Assert.notNull(ctor, "Constructor must not be null");
+  try {
+    
+		// 进行 ctor.setAccessible(true)操作;
+    // 这里主要关注 ctor.newInstance(args)
+    ReflectionUtils.makeAccessible(ctor);
+    return (KotlinDetector.isKotlinReflectPresent() && KotlinDetector.isKotlinType(ctor.getDeclaringClass()) ?
+            KotlinDelegate.instantiateClass(ctor, args) : ctor.newInstance(args));
+  }
+  catch (InstantiationException ex) {
+    throw new BeanInstantiationException(ctor, "Is it an abstract class?", ex);
+  }
+  catch (IllegalAccessException ex) {
+    throw new BeanInstantiationException(ctor, "Is the constructor accessible?", ex);
+  }
+  catch (IllegalArgumentException ex) {
+    throw new BeanInstantiationException(ctor, "Illegal arguments for constructor", ex);
+  }
+  catch (InvocationTargetException ex) {
+    throw new BeanInstantiationException(ctor, "Constructor threw exception", ex.getTargetException());
+  }
+}
+```
+
+> `Constructor.newInstance`源码
+>
+> 所有的Bean实例最终都是通过反射进行创建的
+
+```java
+@CallerSensitive
+public T newInstance(Object ... initargs) throws InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException
+{
+  if (!override) {
+    if (!Reflection.quickCheckMemberAccess(clazz, modifiers)) {
+      Class<?> caller = Reflection.getCallerClass();
+      checkAccess(caller, clazz, null, modifiers);
+    }
+  }
+  if ((clazz.getModifiers() & Modifier.ENUM) != 0)
+    throw new IllegalArgumentException("Cannot reflectively create enum objects");
+  ConstructorAccessor ca = constructorAccessor;   // read volatile
+  if (ca == null) {
+    ca = acquireConstructorAccessor();
+  }
+  @SuppressWarnings("unchecked")
+  T inst = (T) ca.newInstance(initargs);
+  return inst;
+}
+```
+
+> 最终其实就是根据构造器调用了`native Object newInstance0(Constructor<?> var0, Object[] var1)`方法，去调用C++对应的逻辑了，这里就不继续往下挖了
+
+```java
+class NativeConstructorAccessorImpl extends ConstructorAccessorImpl {
+    private final Constructor<?> c;
+    private DelegatingConstructorAccessorImpl parent;
+    private int numInvocations;
+
+    NativeConstructorAccessorImpl(Constructor<?> var1) {
+        this.c = var1;
+    }
+
+    public Object newInstance(Object[] var1) throws InstantiationException, IllegalArgumentException, InvocationTargetException {
+        if (++this.numInvocations > ReflectionFactory.inflationThreshold() && !ReflectUtil.isVMAnonymousClass(this.c.getDeclaringClass())) {
+            ConstructorAccessorImpl var2 = (ConstructorAccessorImpl)(new MethodAccessorGenerator()).generateConstructor(this.c.getDeclaringClass(), this.c.getParameterTypes(), this.c.getExceptionTypes(), this.c.getModifiers());
+            this.parent.setDelegate(var2);
+        }
+
+        return newInstance0(this.c, var1);
+    }
+
+    void setParent(DelegatingConstructorAccessorImpl var1) {
+        this.parent = var1;
+    }
+
+    private static native Object newInstance0(Constructor<?> var0, Object[] var1) throws InstantiationException, IllegalArgumentException, InvocationTargetException;
+}
+```
+
+##### 循环依赖
+
+> 如图：`TestA`创建需要依赖`TestB`,`TestB`创建需要依赖`TestC`,而`TestC`创建又需要依赖`TestA`，这样相互依赖最终没法完整创建导致失败
+
+![image-20230313035616533](https://article.biliimg.com/bfs/article/bbabef0663b1eace18e2fc40d95860eac727bc7c.png)
+
+> - **构造注入中是无法解决循环依赖问题的**
+> - **只能检测是否存在循环依赖然后抛出异常**
+
+```JAVA
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/8/8 2:10 AM
+ */
+
+@Component
+public class BeanA {
+    private BeanB beanB;
+
+    @Autowired
+    public BeanA(BeanB beanB) {
+        this.beanB = beanB;
+    }
+}
+
+@Component
+class BeanB {
+
+    private BeanC beanC;
+
+    @Autowired
+    public BeanB(BeanC beanC) {
+        this.beanC = beanC;
+    }
+}
+
+@Component
+class BeanC {
+    private BeanB beanB;
+
+    @Autowired
+    public BeanC(BeanB beanB) {
+        this.beanB = beanB;
+    }
+}
+```
+
+> 获取 beanA
+
+```java
+/**
+ * <p>
+ * <b>功能描述</b>
+ * </p >
+ *
+ * @author : RhysNi
+ * @version : v1.0
+ * @date : 2023/8/7 10:36
+ * @CopyRight :　<a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+ */
+public class ConstructorTestMain {
+    public static void main(String[] args) {
+        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext("com.rhys.testSourceCode.config.base");
+        applicationContext.getBean(BeanA.class);
+    }
+}
+```
+
+> 运行后报错如下, 存在无法解析的循环引用，因此我么才知道，在构造注入中，spring是没有办法帮我们处理循环依赖问题的，只能对循环依赖进行检测报错
+
+![image-20230808021839003](https://article.biliimg.com/bfs/article/88e3163320cd4f1b3649eb7075caf48cfcd0bf4c.png)
+
+> 下面我们就来看一下源码中是如何对循环依赖进行检测的
+
+```java
+public Object getSingleton(String beanName, ObjectFactory<?> singletonFactory) {
+  Assert.notNull(beanName, "Bean name must not be null");
+  synchronized (this.singletonObjects) {
+    Object singletonObject = this.singletonObjects.get(beanName);
+    if (singletonObject == null) {
+   		// ... 省略部分源码
+      beforeSingletonCreation(beanName);
+      boolean newSingleton = false;
+      boolean recordSuppressedExceptions = (this.suppressedExceptions == null);
+      if (recordSuppressedExceptions) {
+        this.suppressedExceptions = new LinkedHashSet<>();
+      }
+      try {
+        singletonObject = singletonFactory.getObject();
+        newSingleton = true;
+      }
+   		// ... 省略部分源码
+    }
+    return singletonObject;
+  }
+}
+```
+
+> 这里的`beforeSingletonCreation`方法，我们跟进去看一下
+>
+> 📢：这里其实涉及到一个小知识点
+>
+> - `singletonsCurrentlyInCreation`为什么不是放在`ThreadLocal`中
+>
+> 其实是因为这个检查机制是处在`getSingleton`单例Bean的创建中，在创建开始的时候就已经存在两把`synchronized`锁，所以保证了只有一个线程能进来进行操作，但是在<a href="#protoTypeCreation">原型模式的bean实例化</a>中，相关属性就是放在`ThreadLocal`中了。
+
+```java
+protected void beforeSingletonCreation(String beanName) {
+  // 这里使用了两个容器
+ 	// 用来存储当前正在创建检查排除项中存在的Bean名称
+  // 这个容器的set擦做目前跟踪下来只在`ConfigurationClassEnhancer.resolveBeanReference`类中用到了,也就是涉及到@Bean方法的反射过程
+  // Set<String> inCreationCheckExclusions = Collections.newSetFromMap(new ConcurrentHashMap<>(16));
+  
+  // 用来存储当前正在创建的Bean名称
+  // Set<String> singletonsCurrentlyInCreation = Collections.newSetFromMap(new ConcurrentHashMap<>(16));
+  if (!this.inCreationCheckExclusions.contains(beanName) && !this.singletonsCurrentlyInCreation.add(beanName)) {
+    throw new BeanCurrentlyInCreationException(beanName);
+  }
+}
+```
+
+> 也就是说当我们正在创建的`Bean`不在`当前正在创建检查排除项inCreationCheckExclusions`中，就说明不需要排除检查，并且同时不能是`当前正在创建的Bean`,而我们这里的程序在进行第一轮创建到beanC之后，发现依赖了beanA，又去创建beanA,而beanA又依赖了beanB,固然先进行beanB的创建，但是发现beanB已经处于正在创建中了，因此判定为循环依赖
+
+![image-20230808024825372](https://article.biliimg.com/bfs/article/9b69a7c402366edf8297d497a97e97aa6e828b9f.png)
+
+> `afterSingletonCreation`源码
+
+```java
+protected void afterSingletonCreation(String beanName) {
+  // 这里面主要是实bean创建后对`singletonsCurrentlyInCreation`中对应beanNaem的移除操作
+  if (!this.inCreationCheckExclusions.contains(beanName) && !this.singletonsCurrentlyInCreation.remove(beanName)) {
+    throw new IllegalStateException("Singleton '" + beanName + "' isn't currently in creation");
+  }
+}
+```
+
+#### 属性注入
+
+> 同样的，我们新建一套测试类
+
+```java
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/8/8 3:39 AM
+ */
+@Component
+public class BeanQ {
+
+    @Autowired
+    private BeanT beanT;
+
+    public BeanQ() {
+    }
+}
+
+@Component
+class BeanT {
+
+    @Autowired
+    private BeanQ beanQ;
+
+    public BeanT() {
+    }
+}
+```
+
+> 这样的循环依赖在属性住如下会发生什么？
+
+```java
+public class ConstructorTestMain {
+    public static void main(String[] args) {
+        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext("com.rhys.testSourceCode.config.base");
+        applicationContext.getBean(BeanQ.class);
+    }
+}
+```
+
+> 运行结果,竟然成功了，那说明spring在属性注入流程中给我们做了循环依赖处理
+
+![image-20230808034617174](https://article.biliimg.com/bfs/article/93f24aa1e6b6da726feaabf3262f2c5e38667e4a.png)
+
+> 属性注入相关源码其实就是在我们常说到的`populateBean`方法中
+
+```java
+protected void populateBean(String beanName, RootBeanDefinition mbd, @Nullable BeanWrapper bw) {
+  if (bw == null) {
+    if (mbd.hasPropertyValues()) {
+      throw new BeanCreationException(
+        mbd.getResourceDescription(), beanName, "Cannot apply property values to null instance");
+    }
+    else {
+      // Skip property population phase for null instance.
+      return;
+    }
+  }
+
+  // Give any InstantiationAwareBeanPostProcessors the opportunity to modify the
+  // state of the bean before properties are set. This can be used, for example,
+  // to support styles of field injection.
+  boolean continueWithPropertyPopulation = true;
+
+  if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
+    for (BeanPostProcessor bp : getBeanPostProcessors()) {
+      if (bp instanceof InstantiationAwareBeanPostProcessor) {
+        InstantiationAwareBeanPostProcessor ibp = (InstantiationAwareBeanPostProcessor) bp;
+        if (!ibp.postProcessAfterInstantiation(bw.getWrappedInstance(), beanName)) {
+          continueWithPropertyPopulation = false;
+          break;
+        }
+      }
+    }
+  }
+
+  if (!continueWithPropertyPopulation) {
+    return;
+  }
+
+  PropertyValues pvs = (mbd.hasPropertyValues() ? mbd.getPropertyValues() : null);
+
+  if (mbd.getResolvedAutowireMode() == AUTOWIRE_BY_NAME || mbd.getResolvedAutowireMode() == AUTOWIRE_BY_TYPE) {
+    MutablePropertyValues newPvs = new MutablePropertyValues(pvs);
+    // Add property values based on autowire by name if applicable.
+    if (mbd.getResolvedAutowireMode() == AUTOWIRE_BY_NAME) {
+      autowireByName(beanName, mbd, bw, newPvs);
+    }
+    // Add property values based on autowire by type if applicable.
+    if (mbd.getResolvedAutowireMode() == AUTOWIRE_BY_TYPE) {
+      autowireByType(beanName, mbd, bw, newPvs);
+    }
+    pvs = newPvs;
+  }
+
+  boolean hasInstAwareBpps = hasInstantiationAwareBeanPostProcessors();
+  boolean needsDepCheck = (mbd.getDependencyCheck() != AbstractBeanDefinition.DEPENDENCY_CHECK_NONE);
+
+  PropertyDescriptor[] filteredPds = null;
+  if (hasInstAwareBpps) {
+    if (pvs == null) {
+      pvs = mbd.getPropertyValues();
+    }
+    for (BeanPostProcessor bp : getBeanPostProcessors()) {
+      if (bp instanceof InstantiationAwareBeanPostProcessor) {
+        InstantiationAwareBeanPostProcessor ibp = (InstantiationAwareBeanPostProcessor) bp;
+        PropertyValues pvsToUse = ibp.postProcessProperties(pvs, bw.getWrappedInstance(), beanName);
+        if (pvsToUse == null) {
+          if (filteredPds == null) {
+            filteredPds = filterPropertyDescriptorsForDependencyCheck(bw, mbd.allowCaching);
+          }
+          pvsToUse = ibp.postProcessPropertyValues(pvs, filteredPds, bw.getWrappedInstance(), beanName);
+          if (pvsToUse == null) {
+            return;
+          }
+        }
+        pvs = pvsToUse;
+      }
+    }
+  }
+  if (needsDepCheck) {
+    if (filteredPds == null) {
+      filteredPds = filterPropertyDescriptorsForDependencyCheck(bw, mbd.allowCaching);
+    }
+    checkDependencies(beanName, mbd, filteredPds, pvs);
+  }
+
+  if (pvs != null) {
+    applyPropertyValues(beanName, mbd, bw, pvs);
+  }
+}
+```
 

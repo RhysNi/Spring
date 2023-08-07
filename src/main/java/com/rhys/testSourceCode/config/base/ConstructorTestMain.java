@@ -15,6 +15,6 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 public class ConstructorTestMain {
     public static void main(String[] args) {
         AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext("com.rhys.testSourceCode.config.base");
-        applicationContext.getBean(BeanR.class);
+        applicationContext.getBean(BeanQ.class);
     }
 }

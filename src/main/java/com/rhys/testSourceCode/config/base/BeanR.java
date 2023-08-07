@@ -25,7 +25,7 @@ public class BeanR {
     }
 
 
-    @Autowired(required = false)
+    // @Autowired
     public BeanR(BeanY beanY, BeanS beanS) {
         this.beanY = beanY;
         this.beanS = beanS;
