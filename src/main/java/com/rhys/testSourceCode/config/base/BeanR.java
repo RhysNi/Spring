@@ -1,6 +1,7 @@
 package com.rhys.testSourceCode.config.base;
 
-import com.rhys.spring.context.annotation.Component;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 /**
  * <p>
@@ -18,11 +19,13 @@ public class BeanR {
     private BeanY beanY;
     private BeanS beanS;
 
-
+    @Autowired
     public BeanR(BeanY beanY) {
         this.beanY = beanY;
     }
 
+
+    @Autowired(required = false)
     public BeanR(BeanY beanY, BeanS beanS) {
         this.beanY = beanY;
         this.beanS = beanS;

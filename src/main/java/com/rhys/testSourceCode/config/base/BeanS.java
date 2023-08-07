@@ -1,5 +1,7 @@
 package com.rhys.testSourceCode.config.base;
 
+import org.springframework.stereotype.Component;
+
 /**
  * <p>
  * <b>功能描述</b>
@@ -10,5 +12,9 @@ package com.rhys.testSourceCode.config.base;
  * @date : 2023/8/3 19:13
  * @CopyRight :　<a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
  */
+@Component
 public class BeanS {
+    private void doBeanS() {
+        System.out.println("sout doBeanS");
+    }
 }
