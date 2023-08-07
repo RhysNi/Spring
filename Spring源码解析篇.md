@@ -3064,3 +3064,6 @@ protected void populateBean(String beanName, RootBeanDefinition mbd, @Nullable B
 }
 ```
 
+##### 提前暴露
+
+##### 循环依赖
