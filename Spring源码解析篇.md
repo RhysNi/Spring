@@ -3109,6 +3109,8 @@ protected void populateBean(String beanName, RootBeanDefinition mbd, @Nullable B
 
 ##### 循环依赖解决
 
+![三级缓存](https://article.biliimg.com/bfs/article/f091ddc0c5d1f3115032e3031218162b6da28816.png)
+
 ###### 提前暴露
 
 > 循环依赖核心源码如下`AbstractAutowireCapableBeanFactory.doCreateBean()`源码
@@ -3165,3 +3167,84 @@ protected void addSingletonFactory(String beanName, ObjectFactory<?> singletonFa
 > - 当我们 `A->B->A`这种循环依赖的时候，咱们A创建完会再AOP的时候生成一个`增强的 ProxyA`对象
 > - 那再B进行创建的时候，检测到依赖A，这时候就有问题了，我们A已经被AOP增强了，并且生成了新的 `ProxyA`代理对象，如果还是依赖A，那增强就失效了
 > - 因此B其实要依赖增强后的`ProxyA`,所以要用到三级缓存来将增强的代理对象暴露出来
+
+```java
+protected Object doCreateBean(final String beanName, final RootBeanDefinition mbd, final @Nullable Object[] args)
+    throws BeanCreationException {
+
+    // ...省略部分源码
+		
+		if (earlySingletonExposure) {
+      // 循环依赖引用
+			Object earlySingletonReference = getSingleton(beanName, false);
+			if (earlySingletonReference != null) {
+				if (exposedObject == bean) {
+					exposedObject = earlySingletonReference;
+				}
+				else if (!this.allowRawInjectionDespiteWrapping && hasDependentBean(beanName)) {
+					String[] dependentBeans = getDependentBeans(beanName);
+					Set<String> actualDependentBeans = new LinkedHashSet<>(dependentBeans.length);
+					for (String dependentBean : dependentBeans) {
+						if (!removeSingletonIfCreatedForTypeCheckOnly(dependentBean)) {
+							actualDependentBeans.add(dependentBean);
+						}
+					}
+					if (!actualDependentBeans.isEmpty()) {
+						throw new BeanCurrentlyInCreationException(beanName,
+								"Bean with name '" + beanName + "' has been injected into other beans [" +
+								StringUtils.collectionToCommaDelimitedString(actualDependentBeans) +
+								"] in its raw version as part of a circular reference, but has eventually been " +
+								"wrapped. This means that said other beans do not use the final version of the " +
+								"bean. This is often the result of over-eager type matching - consider using " +
+								"'getBeanNamesOfType' with the 'allowEagerInit' flag turned off, for example.");
+					}
+				}
+			}
+		}
+
+    // ...省略部分源码
+}
+```
+
+> `getEarlyBeanReference`源码
+
+```java
+protected Object getEarlyBeanReference(String beanName, RootBeanDefinition mbd, Object bean) {
+  Object exposedObject = bean;
+  if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
+    for (BeanPostProcessor bp : getBeanPostProcessors()) {
+      if (bp instanceof SmartInstantiationAwareBeanPostProcessor) {
+        SmartInstantiationAwareBeanPostProcessor ibp = (SmartInstantiationAwareBeanPostProcessor) bp;
+        // 通过BeanPostProcessor对半成品BeanQ做代理，生成半成品的BeanQ代理对象，让BeanT依赖于此代理对象
+        exposedObject = ibp.getEarlyBeanReference(exposedObject, beanName);
+      }
+    }
+  }
+  return exposedObject;
+}
+```
+
+> `getSingleton`源码
+
+```java
+@Nullable
+protected Object getSingleton(String beanName, boolean allowEarlyReference) {
+  Object singletonObject = this.singletonObjects.get(beanName);
+  if (singletonObject == null && isSingletonCurrentlyInCreation(beanName)) {
+    synchronized (this.singletonObjects) {
+      singletonObject = this.earlySingletonObjects.get(beanName);
+      if (singletonObject == null && allowEarlyReference) {
+        ObjectFactory<?> singletonFactory = this.singletonFactories.get(beanName);
+        if (singletonFactory != null) {
+          // 获取半成品的对象BeanQ
+          singletonObject = singletonFactory.getObject();
+          this.earlySingletonObjects.put(beanName, singletonObject);
+          this.singletonFactories.remove(beanName);
+        }
+      }
+    }
+  }
+  return singletonObject;
+}
+```
+
