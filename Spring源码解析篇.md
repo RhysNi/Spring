@@ -2411,7 +2411,7 @@ protected BeanWrapper createBeanInstance(String beanName, RootBeanDefinition mbd
     // int AUTOWIRE_NO = 0;  表示没有外部定义的自动装配的常量,但是这种方式下仍然会应用到BeanFactoryAware等注解驱动注入
     // int AUTOWIRE_BY_NAME = 1; 根据名称自动装配bean属性(应用于所有bean属性设置器)
     // int AUTOWIRE_BY_TYPE = 2; 根据类型自动装配bean属性(应用于所有bean属性设置器)的常量	
-		// int AUTOWIRE_CONSTRUCTOR = 3; 自动生成可满足的最贪婪的构造函数(涉及解析适当的构造函数)
+	// int AUTOWIRE_CONSTRUCTOR = 3; 自动生成可满足的最贪婪的构造函数(涉及解析适当的构造函数)
     // int AUTOWIRE_AUTODETECT = 4; 指示通过对bean类的自省确定适当的自动装配策略。不过从Spring 3.0开始已经弃用: 如果正在使用混合自动装配																			策略，需要选择基于注解的自动装配，以便更清晰地划分自动装配需求
 		
     // 满足（构造函数不为空||自动装配模式为AUTOWIRE_CONSTRUCTOR||该BeanDfinition中定义了构造函数参数值||参数列表不为空）任何一个条件即可根    		   据有参构造注入
@@ -2979,13 +2979,15 @@ public class ConstructorTestMain {
 
 ```java
 protected void populateBean(String beanName, RootBeanDefinition mbd, @Nullable BeanWrapper bw) {
-  if (bw == null) {
+    if (bw == null) {
     if (mbd.hasPropertyValues()) {
+     // 如果beanWrapper为空的情况下，mbd中有需要设置的属性，直接抛出异常
       throw new BeanCreationException(
         mbd.getResourceDescription(), beanName, "Cannot apply property values to null instance");
     }
     else {
       // Skip property population phase for null instance.
+      // mbd中没有可填充的属性，直接跳过
       return;
     }
   }
@@ -2993,12 +2995,18 @@ protected void populateBean(String beanName, RootBeanDefinition mbd, @Nullable B
   // Give any InstantiationAwareBeanPostProcessors the opportunity to modify the
   // state of the bean before properties are set. This can be used, for example,
   // to support styles of field injection.
+    
+  // 给所有实现了InstantiationAwareBeanPostProcessors的子类有机会在设置属性之前去修改bean的状态，可以被用来支持字段形式注入
   boolean continueWithPropertyPopulation = true;
-
+  
+  // `synthetic`是否为true(默认是false,取反则为true)，一般是只有AOP相关的pointCut配置或者Advice配置才会将`synthetic`设置为true
   if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
+  	// 如果mdb不是'syntheic',且工厂拥有InstantiationAwareBeanPostProcessor，遍历工厂中的BeanPostProcessor
     for (BeanPostProcessor bp : getBeanPostProcessors()) {
       if (bp instanceof InstantiationAwareBeanPostProcessor) {
+     	//如果bp是InstantiationAwareBeanPostProcessor接口，则实例化ibp
         InstantiationAwareBeanPostProcessor ibp = (InstantiationAwareBeanPostProcessor) bp;
+        // postProcessAfterInstantiation：一般用于设置属性
         if (!ibp.postProcessAfterInstantiation(bw.getWrappedInstance(), beanName)) {
           continueWithPropertyPopulation = false;
           break;
@@ -3010,60 +3018,150 @@ protected void populateBean(String beanName, RootBeanDefinition mbd, @Nullable B
   if (!continueWithPropertyPopulation) {
     return;
   }
+  //PropertyValues：包含以一个或多个PropertyValue对象的容器，通常包括针对特定目标Bean的一次更新
+  //如果mdb有PropertyValues就获取其PropertyValues
+  PropertyValues pvs = (mbd.hasPropertyValues() ? mbd.g etPropertyValues() : null);
 
-  PropertyValues pvs = (mbd.hasPropertyValues() ? mbd.getPropertyValues() : null);
-
+  // 获取 mbd 的 自动装配模式
+  // 这个自动装配模式在上面源码中提到过，这里再次列举
+  // int AUTOWIRE_NO = 0;  表示没有外部定义的自动装配的常量,但是这种方式下仍然会应用到BeanFactoryAware等注解驱动注入
+  // int AUTOWIRE_BY_NAME = 1; 根据名称自动装配bean属性(应用于所有bean属性设置器)
+  // int AUTOWIRE_BY_TYPE = 2; 根据类型自动装配bean属性(应用于所有bean属性设置器)的常量	
+  // int AUTOWIRE_CONSTRUCTOR = 3; 自动生成可满足的最贪婪的构造函数(涉及解析适当的构造函数)
+  // int AUTOWIRE_AUTODETECT = 4; 指示通过对bean类的自省确定适当的自动装配策略。不过从Spring 3.0开始已经弃用: 如果正在使用混合自动装配																			策略，需要选择基于注解的自动装配，以便更清晰地划分自动装配需求
+   
   if (mbd.getResolvedAutowireMode() == AUTOWIRE_BY_NAME || mbd.getResolvedAutowireMode() == AUTOWIRE_BY_TYPE) {
+    // 当`AutowireMode`为`根据名称自动装配bean属性` || `根据类型自动装配bean属性`
+    // MutablePropertyValues：PropertyValues接口的默认实现。允许对属性进行简单操作，并提供构造函数来支持从映射进行深度复制和构造
     MutablePropertyValues newPvs = new MutablePropertyValues(pvs);
     // Add property values based on autowire by name if applicable.
+    // 根据autotowire的名称添加属性值
     if (mbd.getResolvedAutowireMode() == AUTOWIRE_BY_NAME) {
+      // 通过bw的PropertyDescriptor属性名，查找出对应的Bean对象，将其添加到newPvs中
       autowireByName(beanName, mbd, bw, newPvs);
     }
     // Add property values based on autowire by type if applicable.
+    // 根据自动装配的类型添加属性值
     if (mbd.getResolvedAutowireMode() == AUTOWIRE_BY_TYPE) {
+      // 通过bw的PropertyDescriptor属性类型，查找出对应的Bean对象，将其添加到newPvs中
       autowireByType(beanName, mbd, bw, newPvs);
     }
+    // 让pvs重新引用newPvs,newPvs此时已经包含了pvs的属性值以及通过AUTOWIRE_BY_NAME，AUTOWIRE_BY_TYPE自动装配所得到的属性值
     pvs = newPvs;
   }
 
+  // 判断工厂是否拥有InstiationAwareBeanPostProcessor处理器
   boolean hasInstAwareBpps = hasInstantiationAwareBeanPostProcessors();
+  // 判断是否需要依赖检查
   boolean needsDepCheck = (mbd.getDependencyCheck() != AbstractBeanDefinition.DEPENDENCY_CHECK_NONE);
-
+	
+  // 经过筛选的PropertyDesciptor数组,存放着排除忽略的依赖项或忽略项上的定义的属性
   PropertyDescriptor[] filteredPds = null;
+    
+  // 如果工厂拥有InstiationAwareBeanPostProcessor处理器
+  // 那么处理对应的流程，主要是对几个注解的赋值工作包含的两个关键子类是 CommonAnnoationBeanPostProcessor,AutowiredAnnotationBeanPostProcessor
   if (hasInstAwareBpps) {
     if (pvs == null) {
+      // PropertyValue对象容器为空，则从mbd中获取对应的属性值
       pvs = mbd.getPropertyValues();
     }
+    // 遍历BeanPostProcessors
     for (BeanPostProcessor bp : getBeanPostProcessors()) {
       if (bp instanceof InstantiationAwareBeanPostProcessor) {
+        // bp匹配为InstantiationAwareBeanPostProcessor接口实例
         InstantiationAwareBeanPostProcessor ibp = (InstantiationAwareBeanPostProcessor) bp;
+        // 在工厂将给定的属性值应用到给定Bean之前，对它们进行后置处理，得到对应的属性值不需要任何属性扫描符，该回调方法在未来的版本会被删掉，取而代之的是 			postProcessPropertyValues 回调方法
         PropertyValues pvsToUse = ibp.postProcessProperties(pvs, bw.getWrappedInstance(), beanName);
         if (pvsToUse == null) {
           if (filteredPds == null) {
+            // pvs为空并且filteredPds为空的情况下，从给定的BeanWrapper中提取一组过滤的属性描述符,排除在忽略的依赖项接口上定义的忽略依赖项类型或属性。
+            // mbd.allowCaching:是否允许缓存，默认允许,缓存除了可以提高效率以外，还可以保证在并发的情况下，返回的PropertyDesciptor[]永远都相同
             filteredPds = filterPropertyDescriptorsForDependencyCheck(bw, mbd.allowCaching);
           }
+          // postProcessPropertyValues:一般进行检查是否所有依赖项都满足，例如基于`Require` 注释在 bean属性 setter， 替换要应用的属性值，通常是通			    过基于原始的PropertyValues创建一个新的MutablePropertyValue实例， 添加或删除特定的值,返回的PropertyValues 将应用于bw包装的bean实例              的实际属性值（添加PropertyValues实例到pvs 或者 设置为null以跳过属性填充）回到ipd的postProcessPropertyValues方法
           pvsToUse = ibp.postProcessPropertyValues(pvs, filteredPds, bw.getWrappedInstance(), beanName);
+          // 如果pvsToUse为null，将终止该方法以跳过属性填充
           if (pvsToUse == null) {
             return;
           }
         }
+        // 让pvs引用pvsToUse
         pvs = pvsToUse;
       }
     }
   }
+  // 需要依赖检查
   if (needsDepCheck) {
     if (filteredPds == null) {
+      // 当filteredPds为null，则从bw提取一组经过筛选的PropertyDesciptor,排除忽略的依赖项或忽略项上的定义的属性
       filteredPds = filterPropertyDescriptorsForDependencyCheck(bw, mbd.allowCaching);
     }
+    // 进行依赖检查，主要检查pd的setter方法需要赋值时,pvs中有没有满足其pd的需求的属性值可供其赋值
     checkDependencies(beanName, mbd, filteredPds, pvs);
   }
-
+  // 如果pvs不为null 
   if (pvs != null) {
+    // 应用给定的属性值，解决任何在这个bean工厂运行时其他bean的引用。必须使用深拷贝，所以我们不要永久修改此属性
     applyPropertyValues(beanName, mbd, bw, pvs);
   }
 }
 ```
 
-##### 提前暴露
+##### 循环依赖解决
 
-##### 循环依赖
+###### 提前暴露
+
+> 循环依赖核心源码如下`AbstractAutowireCapableBeanFactory.doCreateBean()`源码
+
+```java
+protected Object doCreateBean(final String beanName, final RootBeanDefinition mbd, final @Nullable Object[] args)
+    throws BeanCreationException {
+
+    // ...省略部分源码
+
+    // Eagerly cache singletons to be able to resolve circular references
+    // even when triggered by lifecycle interfaces like BeanFactoryAware.
+    // earlySingletonExposure: 是否需要提前暴露
+    // 想要提前暴露的话需要满足三个条件（是单例Bean && 支持循环依赖 && 缓存当前正在创建Bean名称到isSingletonCurrentlyInCreation容器成功，避免重复创	   建）
+    boolean earlySingletonExposure = (mbd.isSingleton() && this.allowCircularReferences &&
+                                      isSingletonCurrentlyInCreation(beanName));
+    if (earlySingletonExposure) {
+        if (logger.isTraceEnabled()) {
+            logger.trace("Eagerly caching bean '" + beanName +
+                         "' to allow for resolving potential circular references");
+        }
+        // 进行提前暴露逻辑处理
+        addSingletonFactory(beanName, () -> getEarlyBeanReference(beanName, mbd, bean));
+    }
+
+    // ...省略部分源码
+}
+```
+
+> `addSingletonFactory`提前暴露源码
+
+```java
+protected void addSingletonFactory(String beanName, ObjectFactory<?> singletonFactory) {
+    Assert.notNull(singletonFactory, "Singleton factory must not be null");
+    // singletonObjects: 用来存储所有单例对象信息的容器
+    synchronized (this.singletonObjects) {
+        // 当前要创建的这个bean不存于singletonObjects容器（一级缓存）中，代表没有创建过
+        if (!this.singletonObjects.containsKey(beanName)) {
+            // 缓存`singletonFactory` 这是一个Lambda表达式，就是一个回调函数，执行这个回调将会掉调用											          `AbstractAutowireCapableBeanFactory.getEarlyBeanReference()`方法
+            this.singletonFactories.put(beanName, singletonFactory);
+            // 将其从早期单例对象的缓存中清除
+            this.earlySingletonObjects.remove(beanName);
+            // 将其添加到`registeredSingletons`容器中，代表这是一组已注册的单例
+            this.registeredSingletons.add(beanName);
+        }
+    }
+}
+```
+
+###### 三级缓存
+
+> `spring`中做这样一个三级缓存主要就是因为，当我们Bean实例化完成之后，涉及到`BeanPostProcessor`后置处理（AOP织入相关处理）
+>
+> - 当我们 `A->B->A`这种循环依赖的时候，咱们A创建完会再AOP的时候生成一个`增强的 ProxyA`对象
+> - 那再B进行创建的时候，检测到依赖A，这时候就有问题了，我们A已经被AOP增强了，并且生成了新的 `ProxyA`代理对象，如果还是依赖A，那增强就失效了
+> - 因此B其实要依赖增强后的`ProxyA`,所以要用到三级缓存来将增强的代理对象暴露出来
