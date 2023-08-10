@@ -1,6 +1,5 @@
-package com.rhys.testSourceCode.config.base;
+package com.rhys.testSourceCode.ioc.base;
 
-import com.rhys.spring.context.annotation.Bean;
 import org.springframework.stereotype.Component;
 
 /**
@@ -14,8 +13,8 @@ import org.springframework.stereotype.Component;
  * @CopyRight :　<a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
  */
 @Component
-public class BeanY {
-    private void  doBeanY(){
-        System.out.println("sout doBeanY");
+public class BeanS {
+    private void doBeanS() {
+        System.out.println("sout doBeanS");
     }
 }

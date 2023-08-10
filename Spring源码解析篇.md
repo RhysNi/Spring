@@ -127,8 +127,9 @@
 ### 基于XML方式
 
 #### 定义相关Java类
+
 ```java
-package com.rhys.testSourceCode.config.xml;
+package com.rhys.testSourceCode.ioc.xml;
 
 public class BeanE {
 
@@ -139,7 +140,7 @@ public class BeanE {
 ```
 
 ```java
-package com.rhys.testSourceCode.config.xml;
+package com.rhys.testSourceCode.ioc.xml;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -168,9 +169,9 @@ public class BeanF {
         http://www.springframework.org/schema/context
         http://www.springframework.org/schema/context/spring-context.xsd">
 	
-	<bean id="beanE" class="com.rhys.testSourceCode.config.xml.BeanE" />
+	<bean id="beanE" class="com.rhys.testSourceCode.ioc.xml.BeanE" />
 	
-	<bean id="beanF" class="com.rhys.testSourceCode.config.xml.BeanF" ></bean>
+	<bean id="beanF" class="com.rhys.testSourceCode.ioc.xml.BeanF" ></bean>
 	
 	<context:annotation-config/>
 	
@@ -181,7 +182,7 @@ public class BeanF {
 #### 读取配置文件获取对应Bean
 
 ```java
-package com.rhys.testSourceCode.config.xml;
+package com.rhys.testSourceCode.ioc.xml;
 
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.GenericXmlApplicationContext;
@@ -212,9 +213,9 @@ public class XMLConfigMain {
 #### 定义相关Java类
 
 ```java
-package com.rhys.testSourceCode.config.annotation;
+package com.rhys.testSourceCode.ioc.annotation;
 
-import com.rhys.testSourceCode.config.xml.BeanE;
+import com.rhys.testSourceCode.ioc.xml.BeanE;
 import org.springframework.beans.factory.annotation.Autowired;
 
 public class BeanH {
@@ -230,15 +231,15 @@ public class BeanH {
 ```
 
 ```java
-package com.rhys.testSourceCode.config.annotation;
+package com.rhys.testSourceCode.ioc.annotation;
 
-import com.rhys.testSourceCode.config.xml.BeanF;
+import com.rhys.testSourceCode.ioc.xml.BeanF;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.ImportResource;
 import org.springframework.stereotype.Component;
 
 @Component
-@ImportResource("classpath:com/rhys/testSourceCode/config/xml/application.xml")
+@ImportResource("classpath:com/rhys/testSourceCode/ioc/xml/application.xml")
 public class BeanG {
 	@Autowired
 	private BeanF beanf;
@@ -255,10 +256,10 @@ public class BeanG {
 > Sping中使用`@Configuration`注解修饰的类则为配置类
 >
 > - 在配置类中定义了`getBeanH`方法用来生成相关`BeanH`
-> - `@ComponentScan("com.rhys.testSourceCode.config")`定义扫描路径
+> - `@ComponentScan("com.rhys.testSourceCode.ioc")`定义扫描路径
 
 ```java
-package com.rhys.testSourceCode.config.annotation;
+package com.rhys.testSourceCode.ioc.annotation;
 
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
@@ -267,7 +268,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@ComponentScan("com.rhys.testSourceCode.config")
+@ComponentScan("com.rhys.testSourceCode.ioc")
 public class JavaBasedMain {
 
 	@Bean
@@ -289,7 +290,7 @@ public class JavaBasedMain {
 > 定义一个扫描路径
 
 ```java
-package com.rhys.testSourceCode.config.annotation;
+package com.rhys.testSourceCode.ioc.annotation;
 
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
@@ -297,7 +298,7 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 public class AnnotationMain {
 
 	public static void main(String[] args) {
-		ApplicationContext context = new AnnotationConfigApplicationContext("com.rhys.testSourceCode.config");
+		ApplicationContext context = new AnnotationConfigApplicationContext("com.rhys.testSourceCode.ioc");
 		BeanG bg = context.getBean(BeanG.class);
 		bg.dog();
 	}
@@ -1359,7 +1360,7 @@ public class BPFTestMain {
 执行了 - RhysBeanDefinitionRegistryPostProcessor2.postProcessBeanFactory()
 执行了 - RhysBeanDefinitionRegistryPostProcessor1.postProcessBeanFactory()
 ---------------------------------------------------------------------------
-com.rhys.testSourceCode.config.annotation.BeanH@70be0a2b doH
+com.rhys.testSourceCode.ioc.annotation.BeanH@70be0a2b doH
 ```
 
 > 如果我们还想对beanFactory中的某些Bean做处理还可以这样做】
@@ -1428,7 +1429,7 @@ public class BPFTestMain {
 执行了 - RhysBeanDefinitionRegistryPostProcessor1.postProcessBeanFactory()
 ---------------------------------------------------------------------------
 RhysBeanDefinitionRegistryPostProcessor1.postProcessBeanFactory.beanFactory.getBean
-com.rhys.testSourceCode.config.annotation.BeanH@c8e4bb0 doH
+com.rhys.testSourceCode.ioc.annotation.BeanH@c8e4bb0 doH
 ```
 
 #### registerBeanPostProcessors
@@ -1942,12 +1943,12 @@ public class BPFTestMain {
 执行了 - RhysBeanDefinitionRegistryPostProcessor1.postProcessBeanFactory()
 ---------------------------------------------------------------------------
 RhysBeanDefinitionRegistryPostProcessor1.postProcessBeanFactory.beanFactory.getBean
-com.rhys.testSourceCode.config.annotation.BeanH@77e9807f doH
+com.rhys.testSourceCode.ioc.annotation.BeanH@77e9807f doH
 RhysAppListener-接受到了应用事件： org.springframework.context.event.ContextRefreshedEvent[source=org.springframework.context.annotation.AnnotationConfigApplicationContext@1d56ce6a, started on Wed Aug 02 04:44:50 CST 2023]
-com.rhys.testSourceCode.config.annotation.BeanH@222114ba doH
+com.rhys.testSourceCode.ioc.annotation.BeanH@222114ba doH
 RhysAppListener-接受到了应用事件： org.springframework.context.event.ContextClosedEvent[source=org.springframework.context.annotation.AnnotationConfigApplicationContext@1d56ce6a, started on Wed Aug 02 04:44:50 CST 2023]
-销毁对象：com.rhys.testSourceCode.config.annotation.BeanH@3b07a0d6
-销毁对象：com.rhys.testSourceCode.config.annotation.BeanH@222114ba
+销毁对象：com.rhys.testSourceCode.ioc.annotation.BeanH@3b07a0d6
+销毁对象：com.rhys.testSourceCode.ioc.annotation.BeanH@222114ba
 ```
 
 > 执行了`applicationContext.close()`方法后
@@ -2147,9 +2148,9 @@ protected void finishRefresh() {
 }
 ```
 
-### DI源码分析
+## DI源码分析
 
-#### 什么是DI
+### 什么是DI
 
 > - DI即为`依赖注入`，基于IoC所得到的Bean对象相关属性的赋值
 >
@@ -2157,12 +2158,7 @@ protected void finishRefresh() {
 >
 > **依赖注入的本质是`给有参构造方法赋值`、`给属性赋值`**
 
-#### 哪些地方会有依赖
-
-> - 构造参数依赖
-> - 属性依赖
-
-#### 参数值|属性值有哪些
+### 参数值|属性值有哪些
 
 > `直接值`和`Bean依赖`
 >
@@ -2202,9 +2198,9 @@ public class TestB {
 }
 ```
 
-#### 构造注入
+### 构造注入
 
-##### 多个构造方法的选择
+#### 多个构造方法的选择
 
 > 由于Spring生成Bean实例的时候`默认调用无参构造方法创建实例`，我们验证一下，新建一个测试用的类做为Bean，其中还有两个属性，给这个类声明两个构造方法，但是没提供无参构造
 
@@ -2255,7 +2251,7 @@ public class BeanS {
 
 > 当我们启动的时候则会报错如下：没有找到默认的构造方法，也就是无参构造
 >
-> - `java.lang.NoSuchMethodException: com.rhys.testSourceCode.config.base.BeanR.<init>()`
+> - `java.lang.NoSuchMethodException: com.rhys.testSourceCode.ioc.base.BeanR.<init>()`
 
 ![image-20230807231444528](https://article.biliimg.com/bfs/article/fa0318d99851bb62ddda5c91efa4fbd270b1317d.png)
 
@@ -2318,11 +2314,11 @@ public class BeanR {
 >
 > Exception in thread "main" org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'beanR': Invalid autowire-marked constructor: 
 >
-> `public com.rhys.testSourceCode.config.base.BeanR(BeanY,BeanS)`
+> `public com.rhys.testSourceCode.ioc.base.BeanR(BeanY,BeanS)`
 >
 > Found constructor with 'required' Autowired annotation already: 
 >
-> `public com.rhys.testSourceCode.config.base.BeanR(BeanY)`
+> `public com.rhys.testSourceCode.ioc.base.BeanR(BeanY)`
 >
 > 
 >
@@ -2792,7 +2788,7 @@ class NativeConstructorAccessorImpl extends ConstructorAccessorImpl {
 }
 ```
 
-##### 循环依赖
+#### 循环依赖
 
 > 如图：`TestA`创建需要依赖`TestB`,`TestB`创建需要依赖`TestC`,而`TestC`创建又需要依赖`TestA`，这样相互依赖最终没法完整创建导致失败
 
@@ -2855,7 +2851,7 @@ class BeanC {
  */
 public class ConstructorTestMain {
     public static void main(String[] args) {
-        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext("com.rhys.testSourceCode.config.base");
+        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext("com.rhys.testSourceCode.ioc.base");
         applicationContext.getBean(BeanA.class);
     }
 }
@@ -2929,7 +2925,7 @@ protected void afterSingletonCreation(String beanName) {
 }
 ```
 
-#### 属性注入
+### 属性注入
 
 > 同样的，我们新建一套测试类
 
@@ -2965,7 +2961,7 @@ class BeanT {
 ```java
 public class ConstructorTestMain {
     public static void main(String[] args) {
-        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext("com.rhys.testSourceCode.config.base");
+        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext("com.rhys.testSourceCode.ioc.base");
         applicationContext.getBean(BeanQ.class);
     }
 }
@@ -3107,11 +3103,9 @@ protected void populateBean(String beanName, RootBeanDefinition mbd, @Nullable B
 }
 ```
 
-##### 循环依赖解决
+#### 循环依赖解决
 
-![三级缓存](https://article.biliimg.com/bfs/article/f091ddc0c5d1f3115032e3031218162b6da28816.png)
-
-###### 提前暴露
+##### 提前暴露
 
 > 循环依赖核心源码如下`AbstractAutowireCapableBeanFactory.doCreateBean()`源码
 
@@ -3160,13 +3154,15 @@ protected void addSingletonFactory(String beanName, ObjectFactory<?> singletonFa
 }
 ```
 
-###### 三级缓存
+##### 三级缓存
 
 > `spring`中做这样一个三级缓存主要就是因为，当我们Bean实例化完成之后，涉及到`BeanPostProcessor`后置处理（AOP织入相关处理）
 >
 > - 当我们 `A->B->A`这种循环依赖的时候，咱们A创建完会再AOP的时候生成一个`增强的 ProxyA`对象
 > - 那再B进行创建的时候，检测到依赖A，这时候就有问题了，我们A已经被AOP增强了，并且生成了新的 `ProxyA`代理对象，如果还是依赖A，那增强就失效了
 > - 因此B其实要依赖增强后的`ProxyA`,所以要用到三级缓存来将增强的代理对象暴露出来
+
+![三级缓存](https://article.biliimg.com/bfs/article/37afc146218ca0b55bd7611fc5e639371f1e5313.png)
 
 ```java
 protected Object doCreateBean(final String beanName, final RootBeanDefinition mbd, final @Nullable Object[] args)
@@ -3247,4 +3243,68 @@ protected Object getSingleton(String beanName, boolean allowEarlyReference) {
   return singletonObject;
 }
 ```
+
+### AOP源码解析
+
+#### AOP基础概念
+
+> **面向切面编程，在不改变类的代码的情况下，对类方法进行功能的增强**
+
+![image-20230314141613895](https://article.biliimg.com/bfs/article/247d3456da760e98a70d8e5314d3f351b21e375d.png)
+
+### 程序执行流程
+
+> - 在我们OOP中有一个待执行的正常的流程有`testA()、testB()、testC()`几个方法
+> - `Advice`就是我们需要增强的通知内容，对`testA`增强还是对`testB()`增强
+> - 具体想增强什么方法，是通过`PonintCut`根据`JoinPoints连接点`来定位到具体的方法的
+
+![image-20230315161934124](https://article.biliimg.com/bfs/article/bf6120dee68fe43761303a633592070dd6863272.png)
+
+### Advice
+
+#### 面向接口编程
+
+> **通知：进行功能增强**
+
+#### Advice的特点
+
+##### 用户性
+
+> 由用户提供增强的逻辑代码
+
+##### 变化性
+
+> 不同的增强需求会有不同的逻辑
+
+##### 多重性
+
+> 同一个切入点可以有多重增强
+
+##### 可选时机
+
+> 可选择在方法执行前、后、异常时进行功能的增强
+
+#### Advice结构
+
+![image-20230811010435064](https://article.biliimg.com/bfs/article/76e77adf522cfcbaab319a14b391c278ed08f6e9.png)
+
+##### Interceptor
+
+> 环绕通知:主要实现有方法拦截器与构造拦截器
+
+##### BeforeAdvice
+
+> 前置通知:在方法执行前进行增强
+
+##### AfterAdvice
+
+> 最终通知:在方法执行后进行增强
+
+##### DynamicIntroductionAdvice
+
+> 允许拦截器实现其他接口，并通过使用该拦截器的代理提供。这是一个基本的AOP概念，称为引入
+
+##### AbstractAspectJAdvice
+
+> 包含 AspectJ 方面或 AspectJ 注释的相关处理
 

@@ -1,4 +1,4 @@
-package com.rhys.testSourceCode.config.xml;
+package com.rhys.testSourceCode.ioc.xml;
 
 import org.springframework.beans.factory.annotation.Autowired;
 

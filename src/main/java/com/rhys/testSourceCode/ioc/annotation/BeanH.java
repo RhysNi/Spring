@@ -1,7 +1,5 @@
-package com.rhys.testSourceCode.config.annotation;
+package com.rhys.testSourceCode.ioc.annotation;
 
-import com.rhys.testSourceCode.config.xml.BeanE;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PreDestroy;

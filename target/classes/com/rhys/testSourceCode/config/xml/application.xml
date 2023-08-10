@@ -7,11 +7,11 @@
         http://www.springframework.org/schema/context
         http://www.springframework.org/schema/context/spring-context.xsd">
 	
-	<bean id="beanE" class="com.rhys.testSourceCode.config.xml.BeanE" />
+	<bean id="beanE" class="com.rhys.testSourceCode.ioc.xml.BeanE" />
 	
-	<bean id="beanF" class="com.rhys.testSourceCode.config.xml.BeanF" ></bean>
+	<bean id="beanF" class="com.rhys.testSourceCode.ioc.xml.BeanF" ></bean>
 	
 	<context:annotation-config/>
 	
-	<context:component-scan base-package="com.rhys.testSourceCode.config" ></context:component-scan>
+	<context:component-scan base-package="com.rhys.testSourceCode.ioc" ></context:component-scan>
 </beans>

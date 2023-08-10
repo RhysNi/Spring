@@ -1,4 +1,4 @@
-package com.rhys.testSourceCode.config.xml;
+package com.rhys.testSourceCode.ioc.xml;
 
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.GenericXmlApplicationContext;

@@ -1,4 +1,4 @@
-package com.rhys.testSourceCode.config.annotation;
+package com.rhys.testSourceCode.ioc.annotation;
 
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
@@ -7,7 +7,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@ComponentScan("com.rhys.testSourceCode.config")
+@ComponentScan("com.rhys.testSourceCode.ioc")
 public class JavaBasedMain {
 
 	@Bean

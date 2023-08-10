@@ -1,6 +1,5 @@
-package com.rhys.testSourceCode.config.base;
+package com.rhys.testSourceCode.ioc.base;
 
-import com.sun.scenario.effect.impl.prism.PrImage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 

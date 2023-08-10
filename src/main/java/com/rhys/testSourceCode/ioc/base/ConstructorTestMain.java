@@ -1,4 +1,4 @@
-package com.rhys.testSourceCode.config.base;
+package com.rhys.testSourceCode.ioc.base;
 
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
