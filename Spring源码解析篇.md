@@ -3264,7 +3264,7 @@ protected Object getSingleton(String beanName, boolean allowEarlyReference) {
 
 #### 面向接口编程
 
-> **通知：进行功能增强**
+> **Advice通知：进行功能增强**
 
 #### Advice的特点
 
