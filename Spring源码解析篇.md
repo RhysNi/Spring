@@ -3335,4 +3335,211 @@ protected Object getSingleton(String beanName, boolean allowEarlyReference) {
 
 > 包含 AspectJ 方面或 AspectJ 注释的相关处理
 
-### Pointcut类结构
+### Pointcut
+
+```java
+public interface Pointcut {
+
+	/**
+	 * Return the ClassFilter for this pointcut.
+	 * @return the ClassFilter (never {@code null})
+	 */
+  // 返回此切入点的类筛选器
+	ClassFilter getClassFilter();
+
+	/**
+	 * Return the MethodMatcher for this pointcut.
+	 * @return the MethodMatcher (never {@code null})
+	 */
+  // 返回此切入点的方法匹配器
+	MethodMatcher getMethodMatcher();
+
+
+	/**
+	 * Canonical Pointcut instance that always matches.
+	 */
+  // 始终匹配的规范切入点实例 TruePointcut
+	Pointcut TRUE = TruePointcut.INSTANCE;
+
+}
+```
+
+#### 实现方式
+
+![image-20230814225650583](https://article.biliimg.com/bfs/article/8b1afdc3a5cb292264a6a7efd53646963cd10d00.png)
+
+##### AspectJExpressionPointcut
+
+> 使用 AspectJ weaver 来评估切入点表达式。切入点表达式值是一个 AspectJ 表达式，仅支持方法执行切入点
+
+##### JdkRegexpMethodPointcut
+
+> 基于 java.util.regex 包的正则表达式切入点
+
+### Advisor
+
+> 为用户提供更简单的`Advisor(通知者)`组合`Advice`和`Pointcut`
+>
+> - 当用户使用`AspectJ`表达式来指定切入点事就用`AspectJPointCutAdvisor`这个实现
+> - 只需要配置好该类的Bean，指定AdviceBeanName和expression即可
+
+```java
+public interface Advisor {
+
+	/**
+	 * Common placeholder for an empty {@code Advice} to be returned from
+	 * {@link #getAdvice()} if no proper advice has been configured (yet).
+	 * @since 5.0
+	 */
+  // 如果尚未配置正确的通知，则从 getAdvice（） 返回空通知的通用占位符
+	Advice EMPTY_ADVICE = new Advice() {};
+
+
+	/**
+	 * Return the advice part of this aspect. An advice may be an
+	 * interceptor, a before advice, a throws advice, etc.
+	 * @return the advice that should apply if the pointcut matches
+	 * @see org.aopalliance.intercept.MethodInterceptor
+	 * @see BeforeAdvice
+	 * @see ThrowsAdvice
+	 * @see AfterReturningAdvice
+	 */
+  // 返回这方面的通知。可以是环绕通知、方法前置通知、方法后置通知等
+	Advice getAdvice();
+
+	/**
+	 * Return whether this advice is associated with a particular instance
+	 * (for example, creating a mixin) or shared with all instances of
+	 * the advised class obtained from the same Spring bean factory.
+	 * <p><b>Note that this method is not currently used by the framework.</b>
+	 * Typical Advisor implementations always return {@code true}.
+	 * Use singleton/prototype bean definitions or appropriate programmatic
+	 * proxy creation to ensure that Advisors have the correct lifecycle model.
+	 * @return whether this advice is associated with a particular target instance
+	 */
+  // 判断此通知是否与特定实例相关联还是与从同一Bean工厂获得的被通知类的对应共享实例
+	boolean isPerInstance();
+
+}
+```
+
+#### 具体实现
+
+##### AspectJPointcutAdvisor
+
+> 将AbstractAspectJAdvice适配PointcutAdvisor接口
+
+### Weaving
+
+> **织入：不改变原类的代码实现增强**，
+>
+> - 负责将用户提供的`Advice通知`增强到`Pointcuts的指定方法中`，将切入点所对应的方法（Bean对象）与切入点关联起来
+> - 创建Bean的时候，在Bean执行初始化后通过代理进行增强
+> - 需要对Bean类及方法挨个匹配用户配置的切面，如果匹配到切面则需要增强
+
+#### 织入设计
+
+> 根据AOP的使用流程
+>
+> - 用户负责配置切面
+> - 织入就在初始化后判断判断Bean是否需要增强
+> - 如果需要增强则通过代理进行增强，最后返回`代理对象实例`
+> - 不需要增强的话则直接返回`原始对象实例`
+
+![image-20230322013928793](https://article.biliimg.com/bfs/article/38f934325210ec4acff266dadc60d8823db91fe0.png)
+
+#### 织入实现
+
+> 首先我们先定义好需要增强的目标类
+
+```java
+@Component
+public class BeanN {
+    public void execMethod(String val) {
+        System.out.println("BeanN.execMethod: val:" + val);
+    }
+    public String serviceMethod(String name) {
+        System.out.println("BeanN.serviceMethod name:" + name);
+        return name;
+    }
+    public String serviceMTest(String name) {
+        System.out.println("BeanN.serviceMTest name:" + name);
+        if (!"serviceMTest".equals(name)) {
+            throw new IllegalStateException("name is not equals serviceMTest, name:" + name);
+
+        }
+        return name;
+    }
+}
+```
+
+> 我们定义一个切面类了解一下织入的实现
+
+```java
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/8/15 12:32 AM
+ */
+@Aspect
+@Component
+@EnableAspectJAutoProxy
+public class AnnotationAspectJAdvice {
+
+    @Pointcut("execution(* com.rhys.testSourceCode.aop.beans.*.exec*(..))")
+    public void execMethodsPoint() {}
+
+    @Pointcut("execution(* com.rhys.testSourceCode.aop.beans.*.service*(..))")
+    public void servicesPoint() {}
+
+    @Before("execMethodPoint() && args(val)")
+    public void before(String val) {
+        System.out.println("增强了 AnnotationAspectJAdvice.before方法，val=" + val);
+    }
+
+    @Around(value = "servicesPoint() && args(namem,..)", argNames = "proceedingJoinPoint,name")
+    public Object around(ProceedingJoinPoint proceedingJoinPoint, String name) throws Throwable {
+        System.out.println("增强了 AnnotationAspectJAdvice.around方法，name=" + name);
+        System.out.println("增强了 AnnotationAspectJAdvice.around方法，环绕前-" + proceedingJoinPoint);
+        Object proceed = proceedingJoinPoint.proceed();
+        System.out.println("增强了 AnnotationAspectJAdvice.around方法，环绕后-" + proceedingJoinPoint);
+        return proceed;
+    }
+
+    @AfterReturning(value = "servicesPoint()", returning = "val")
+    public void afterReturning(Object val) {
+        System.out.println("增强了 AnnotationAspectJAdvice.afterReturning方法，val=" + val);
+    }
+
+    @AfterThrowing(value = "servicesPoint()", throwing = "e")
+    public void afterThrowing(JoinPoint joinPoint, Exception e) {
+        System.out.println("增强了 AnnotationAspectJAdvice.afterThrowing方法，joinPoint-" + joinPoint);
+        System.out.println("增强了 AnnotationAspectJAdvice.afterThrowing方法，e: " + e);
+    }
+
+    @After(value = "execMethodPoint()")
+    public void after(JoinPoint joinPoint) {
+        System.out.println("增强了 AnnotationAspectJAdvice.after方法，joinPoint-" + joinPoint);
+    }
+}
+```
+
+> 最后在测试类中验证我们所定义的切面是否能起到作用
+
+```java
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/8/15 1:55 AM
+ */
+public class AnnotationAopTest {
+    public static void main(String[] args) {
+        ApplicationContext applicationContext = new AnnotationConfigApplicationContext("com.rhys.testSourceCode.aop.beans");
+        BeanN beanN = applicationContext.getBean(BeanN.class);
+        beanN.execMethod("testVal");
+        beanN.serviceMethod("serviceMethod");
+        beanN.serviceMTest("serviceMTest");
+    }
+}
+```
+
