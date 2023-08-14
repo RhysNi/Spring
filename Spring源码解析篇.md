@@ -3244,15 +3244,15 @@ protected Object getSingleton(String beanName, boolean allowEarlyReference) {
 }
 ```
 
-### AOP源码解析
+## AOP源码解析
 
-#### AOP基础概念
+### AOP基础概念
 
 > **面向切面编程，在不改变类的代码的情况下，对类方法进行功能的增强**
 
 ![image-20230314141613895](https://article.biliimg.com/bfs/article/247d3456da760e98a70d8e5314d3f351b21e375d.png)
 
-### 程序执行流程
+#### 程序执行流程
 
 > - 在我们OOP中有一个待执行的正常的流程有`testA()、testB()、testC()`几个方法
 > - `Advice`就是我们需要增强的通知内容，对`testA`增强还是对`testB()`增强
@@ -3292,19 +3292,47 @@ protected Object getSingleton(String beanName, boolean allowEarlyReference) {
 
 > 环绕通知:主要实现有方法拦截器与构造拦截器
 
+###### MethodInterceptor
+
+> 方法拦截器
+
+###### Constructorlnterceptor
+
+> 构造方法拦截器
+
 ##### BeforeAdvice
 
 > 前置通知:在方法执行前进行增强
+
+###### MethodBeforeAdvice
+
+###### MethodBeforeAdvicelnterceptor
 
 ##### AfterAdvice
 
 > 最终通知:在方法执行后进行增强
 
+###### ThrowsAdvice
+
+> 异常通知
+
+###### ThrowsAdvicelnterceptor
+
+###### AfterReturningAdvice
+
+> 后置通知
+
+###### AfterReturningAdviceterceptor
+
 ##### DynamicIntroductionAdvice
 
 > 允许拦截器实现其他接口，并通过使用该拦截器的代理提供。这是一个基本的AOP概念，称为引入
+>
+> 是一种比较特殊的增提类型，它不是在目标方法周围织入增强，而是为目标创建新的方法和属性，所以它的`连接点`是`类级别`的而`非方法级别`的。
+> 通过引介增强我们可以为目标类添加一个接口的实现即原来目标类未实现某个接口,那么通过引介增强可以为目标类创建实现某接口的代理。
 
 ##### AbstractAspectJAdvice
 
 > 包含 AspectJ 方面或 AspectJ 注释的相关处理
 
+### Pointcut类结构
