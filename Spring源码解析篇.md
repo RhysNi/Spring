@@ -3331,9 +3331,352 @@ protected Object getSingleton(String beanName, boolean allowEarlyReference) {
 > 是一种比较特殊的增提类型，它不是在目标方法周围织入增强，而是为目标创建新的方法和属性，所以它的`连接点`是`类级别`的而`非方法级别`的。
 > 通过引介增强我们可以为目标类添加一个接口的实现即原来目标类未实现某个接口,那么通过引介增强可以为目标类创建实现某接口的代理。
 
+###### 案例解析
+
+```java
+public class RhysIntroductionTest {
+    public static void main(String[] args) {
+
+        //创建新的代理工厂。将代理给定目标实现的对应接口。
+        ProxyFactory proxyFactory = new ProxyFactory(new RAop());
+
+        //设置是否直接代理目标类，而不仅仅是代理特定接口。默认值为“false”。
+        proxyFactory.setProxyTargetClass(true);
+
+        //为给定的通知创建一个默认的拦截器作为通知者
+        DefaultIntroductionAdvisor advisor = new DefaultIntroductionAdvisor(new 		  RhysIntroductionInterceptor(),RhysEnhancedAop.class);
+        //为代理工厂绑定通知者
+        proxyFactory.addAdvisor(advisor);
+
+        //获取代理对象
+        Object aop = proxyFactory.getProxy();
+
+        //强转为实现了RhysAop接口的目标类
+        RhysAop rhysAop  = (RhysAop) aop;
+        rhysAop.call("代理得到了 RhysAop 并执行了 call 方法");
+
+        //强转为实现了RhysEnhancedAop接口的目标类
+        RhysEnhancedAop rhysEnhancedAop = (RhysEnhancedAop) aop;
+        rhysEnhancedAop.callEnhance("代理得到了 RhysEnhancedAop 并执行了 callEnhance 方法");
+    }
+
+
+}
+
+/**
+ * 代理接口
+ * @author Rhys.Ni
+ * @date 2023/8/17
+ */
+interface RhysAop {
+    void call(String msg);
+}
+
+/**
+ * 引入增强的接口
+ * @author Rhys.Ni
+ * @date 2023/8/17
+ */
+interface RhysEnhancedAop {
+    void callEnhance(String msg);
+}
+
+/**
+ * 代理目标实现类
+ * @author Rhys.Ni
+ * @date 2023/8/17
+ */
+class RAop implements RhysAop {
+
+    @Override
+    public void call(String msg) {
+        System.out.println("execute RAop.call : " + msg);
+    }
+}
+
+
+/**
+ * 引介拦截器实现需要增强的接口
+ * DelegatingIntroductionInterceptor ：方便实现 IntroductionInterceptor 接口。子类只需要扩展这个类并实现要自己引入的接口。在这种情况下，	*	委托是子类实例本身。或者，单独的委托可以实现该接口，并通过委托 bean 属性进行设置。
+ * @author Rhys.Ni
+ * @date 2023/8/17
+ */
+class RhysIntroductionInterceptor extends DelegatingIntroductionInterceptor implements RhysEnhancedAop {
+    @Override
+    public void callEnhance(String msg) {
+        System.out.println("execute RhysIntroductionInterceptor.call : " + msg);
+    }
+}
+```
+
+> 执行结果显示
+>
+> - 咱们上面案例中得到了一个代理对象
+> - 这个代理对象既实现了对原有目标对象的增强
+> - 又引入了新的接口和新的方法
+
+```shell
+execute RAop.call : 代理得到了 RhysAop 并执行了 call 方法
+execute RhysIntroductionInterceptor.call : 代理得到了 RhysEnhancedAop 并执行了 callEnhance 方法
+```
+
 ##### AbstractAspectJAdvice
 
 > 包含 AspectJ 方面或 AspectJ 注释的相关处理
+
+![image-20230817035519705](https://article.biliimg.com/bfs/article/c65ae1156f7f7185f040a74bb2e7ed3224335763.png)
+
+###### AspectJMethodBeforeAdvice
+
+> 在方法之前包装一个 AspectJ
+
+```java
+public class AspectJMethodBeforeAdvice extends AbstractAspectJAdvice implements MethodBeforeAdvice, Serializable {
+
+	public AspectJMethodBeforeAdvice(Method aspectJBeforeAdviceMethod, AspectJExpressionPointcut pointcut, AspectInstanceFactory aif) {
+		super(aspectJBeforeAdviceMethod, pointcut, aif);
+	}
+
+
+	@Override
+	public void before(Method method, Object[] args, @Nullable Object target) throws Throwable {
+		invokeAdviceMethod(getJoinPointMatch(), null, null);
+	}
+
+	@Override
+	public boolean isBeforeAdvice() {
+		return true;
+	}
+
+	@Override
+	public boolean isAfterAdvice() {
+		return false;
+	}
+}
+```
+
+###### AspectJAroundAdvice
+
+> 包装了一个AspectJ通知方法。暴露一个ProceedingJoinPoint
+
+```java
+public class AspectJAroundAdvice extends AbstractAspectJAdvice implements MethodInterceptor, Serializable {
+
+   public AspectJAroundAdvice(
+         Method aspectJAroundAdviceMethod, AspectJExpressionPointcut pointcut, AspectInstanceFactory aif) {
+
+      super(aspectJAroundAdviceMethod, pointcut, aif);
+   }
+
+
+   @Override
+   public boolean isBeforeAdvice() {
+      return false;
+   }
+
+   @Override
+   public boolean isAfterAdvice() {
+      return false;
+   }
+
+   @Override
+   protected boolean supportsProceedingJoinPoint() {
+      return true;
+   }
+
+   @Override
+   public Object invoke(MethodInvocation mi) throws Throwable {
+      if (!(mi instanceof ProxyMethodInvocation)) {
+         throw new IllegalStateException("MethodInvocation is not a Spring ProxyMethodInvocation: " + mi);
+      }
+      ProxyMethodInvocation pmi = (ProxyMethodInvocation) mi;
+      ProceedingJoinPoint pjp = lazyGetProceedingJoinPoint(pmi);
+      JoinPointMatch jpm = getJoinPointMatch(pmi);
+      return invokeAdviceMethod(pjp, jpm, null, null);
+   }
+
+   /**
+    * Return the ProceedingJoinPoint for the current invocation,
+    * instantiating it lazily if it hasn't been bound to the thread already.
+    * @param rmi the current Spring AOP ReflectiveMethodInvocation,
+    * which we'll use for attribute binding
+    * @return the ProceedingJoinPoint to make available to advice methods
+    */
+   protected ProceedingJoinPoint lazyGetProceedingJoinPoint(ProxyMethodInvocation rmi) {
+      return new MethodInvocationProceedingJoinPoint(rmi);
+   }
+
+}
+```
+
+###### AspectJAfterAdvice
+
+> 包装AspectJ最终通知方法。
+
+```java
+public class AspectJAfterAdvice extends AbstractAspectJAdvice implements MethodInterceptor, AfterAdvice, Serializable {
+
+   public AspectJAfterAdvice(Method aspectJBeforeAdviceMethod,AspectJExpressionPointcut pointcut,AspectInstanceFactory aif) {
+      super(aspectJBeforeAdviceMethod, pointcut, aif);
+   }
+
+   @Override
+   public Object invoke(MethodInvocation mi) throws Throwable {
+      try {
+        // ReflectiveMethodInvocation实现类中的动态匹配逻辑
+         return mi.proceed();
+      }
+      finally {
+         invokeAdviceMethod(getJoinPointMatch(), null, null);
+      }
+   }
+
+   @Override
+   public boolean isBeforeAdvice() {
+      return false;
+   }
+
+   @Override
+   public boolean isAfterAdvice() {
+      return true;
+   }
+
+}
+```
+
+###### AspectJAfterReturningAdvice
+
+> 包装AspectJ后置返回通知方法
+
+```java
+public class AspectJAfterReturningAdvice extends AbstractAspectJAdvice
+      implements AfterReturningAdvice, AfterAdvice, Serializable {
+
+   public AspectJAfterReturningAdvice(
+         Method aspectJBeforeAdviceMethod, AspectJExpressionPointcut pointcut, AspectInstanceFactory aif) {
+
+      super(aspectJBeforeAdviceMethod, pointcut, aif);
+   }
+
+
+   @Override
+   public boolean isBeforeAdvice() {
+      return false;
+   }
+
+   @Override
+   public boolean isAfterAdvice() {
+      return true;
+   }
+
+   @Override
+   public void setReturningName(String name) {
+      setReturningNameNoCheck(name);
+   }
+
+   @Override
+   public void afterReturning(@Nullable Object returnValue, Method method, Object[] args, @Nullable Object target) throws Throwable {
+      if (shouldInvokeOnReturnValueOf(method, returnValue)) {
+         invokeAdviceMethod(getJoinPointMatch(), returnValue, null);
+      }
+   }
+
+
+   /**
+    * Following AspectJ semantics, if a returning clause was specified, then the
+    * advice is only invoked if the returned value is an instance of the given
+    * returning type and generic type parameters, if any, match the assignment
+    * rules. If the returning type is Object, the advice is *always* invoked.
+    * @param returnValue the return value of the target method
+    * @return whether to invoke the advice method for the given return value
+    */
+   private boolean shouldInvokeOnReturnValueOf(Method method, @Nullable Object returnValue) {
+      Class<?> type = getDiscoveredReturningType();
+      Type genericType = getDiscoveredReturningGenericType();
+      // If we aren't dealing with a raw type, check if generic parameters are assignable.
+      return (matchesReturnValue(type, method, returnValue) &&
+            (genericType == null || genericType == type ||
+                  TypeUtils.isAssignable(genericType, method.getGenericReturnType())));
+   }
+
+   /**
+    * Following AspectJ semantics, if a return value is null (or return type is void),
+    * then the return type of target method should be used to determine whether advice
+    * is invoked or not. Also, even if the return type is void, if the type of argument
+    * declared in the advice method is Object, then the advice must still get invoked.
+    * @param type the type of argument declared in advice method
+    * @param method the advice method
+    * @param returnValue the return value of the target method
+    * @return whether to invoke the advice method for the given return value and type
+    */
+   private boolean matchesReturnValue(Class<?> type, Method method, @Nullable Object returnValue) {
+      if (returnValue != null) {
+         return ClassUtils.isAssignableValue(type, returnValue);
+      }
+      else if (Object.class == type && void.class == method.getReturnType()) {
+         return true;
+      }
+      else {
+         return ClassUtils.isAssignable(type, method.getReturnType());
+      }
+   }
+
+}
+```
+
+###### AspectJAfterThrowingAdvice
+
+> 包装AspectJ异常排除后通知方法
+
+```java
+public class AspectJAfterThrowingAdvice extends AbstractAspectJAdvice
+      implements MethodInterceptor, AfterAdvice, Serializable {
+
+   public AspectJAfterThrowingAdvice(
+         Method aspectJBeforeAdviceMethod, AspectJExpressionPointcut pointcut, AspectInstanceFactory aif) {
+
+      super(aspectJBeforeAdviceMethod, pointcut, aif);
+   }
+
+
+   @Override
+   public boolean isBeforeAdvice() {
+      return false;
+   }
+
+   @Override
+   public boolean isAfterAdvice() {
+      return true;
+   }
+
+   @Override
+   public void setThrowingName(String name) {
+      setThrowingNameNoCheck(name);
+   }
+
+   @Override
+   public Object invoke(MethodInvocation mi) throws Throwable {
+      try {
+         return mi.proceed();
+      }
+      catch (Throwable ex) {
+         if (shouldInvokeOnThrowing(ex)) {
+            invokeAdviceMethod(getJoinPointMatch(), null, ex);
+         }
+         throw ex;
+      }
+   }
+
+   /**
+    * In AspectJ semantics, after throwing advice that specifies a throwing clause
+    * is only invoked if the thrown exception is a subtype of the given throwing type.
+    */
+   private boolean shouldInvokeOnThrowing(Throwable ex) {
+      return getDiscoveredThrowingType().isAssignableFrom(ex.getClass());
+   }
+
+}
+```
 
 ### Pointcut
 
