@@ -19,7 +19,9 @@ public class AnnotationAopTest {
         ApplicationContext applicationContext = new AnnotationConfigApplicationContext(AnnotationAopTest.class);
         BeanN beanN = applicationContext.getBean(BeanN.class);
         beanN.execMethod("testVal");
+        System.out.println("=================================================================================");
         beanN.serviceMethod("serviceMethod");
-        beanN.serviceMTest("serviceMTest");
+        System.out.println("=================================================================================");
+        beanN.serviceMTest("serviceMTest1");
     }
 }

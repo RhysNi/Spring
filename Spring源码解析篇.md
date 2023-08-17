@@ -3796,6 +3796,11 @@ public interface Advisor {
 > 首先我们先定义好需要增强的目标类
 
 ```java
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/8/15 1:48 AM
+ */
 @Component
 public class BeanN {
     public void execMethod(String val) {
@@ -3808,8 +3813,7 @@ public class BeanN {
     public String serviceMTest(String name) {
         System.out.println("BeanN.serviceMTest name:" + name);
         if (!"serviceMTest".equals(name)) {
-            throw new IllegalStateException("name is not equals serviceMTest, name:" + name);
-
+            throw new IllegalStateException("异常增强测试信息： name is not equals serviceMTest, name:" + name);
         }
         return name;
     }
@@ -3829,40 +3833,91 @@ public class BeanN {
 @EnableAspectJAutoProxy
 public class AnnotationAspectJAdvice {
 
-    @Pointcut("execution(* com.rhys.testSourceCode.aop.beans.*.exec*(..))")
-    public void execMethodsPoint() {}
+    /**
+     * 定义exec前缀方法切点
+     *
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/8/18
+     */
+    @Pointcut("execution(* com.rhys.testSourceCode.aop.beans .*.exec*(..))")
+    public void execMethodsPoint() {
+    }
 
+    /**
+     * 定义service前缀方法切点
+     *
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/8/18
+     */
     @Pointcut("execution(* com.rhys.testSourceCode.aop.beans.*.service*(..))")
-    public void servicesPoint() {}
+    public void servicesPoint() {
+    }
 
-    @Before("execMethodPoint() && args(val)")
+    /**
+     * 定义一个方法前置增强
+     *
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/8/18
+     */
+    @Before("execMethodsPoint() && args(val,..)")
     public void before(String val) {
         System.out.println("增强了 AnnotationAspectJAdvice.before方法，val=" + val);
     }
 
-    @Around(value = "servicesPoint() && args(namem,..)", argNames = "proceedingJoinPoint,name")
-    public Object around(ProceedingJoinPoint proceedingJoinPoint, String name) throws Throwable {
+    /**
+     * 定义一个环绕增强
+     *
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/8/18
+     */
+    @Around("servicesPoint() && args(name,..)")
+    public Object around(ProceedingJoinPoint pjp, String name) throws Throwable {
         System.out.println("增强了 AnnotationAspectJAdvice.around方法，name=" + name);
-        System.out.println("增强了 AnnotationAspectJAdvice.around方法，环绕前-" + proceedingJoinPoint);
-        Object proceed = proceedingJoinPoint.proceed();
-        System.out.println("增强了 AnnotationAspectJAdvice.around方法，环绕后-" + proceedingJoinPoint);
-        return proceed;
+        System.out.println("增强了 AnnotationAspectJAdvice.around方法，环绕前-" + pjp);
+        Object ret = pjp.proceed();
+        System.out.println("增强了 AnnotationAspectJAdvice.around方法，环绕后-" + pjp);
+        return ret;
     }
 
-    @AfterReturning(value = "servicesPoint()", returning = "val")
+    /**
+     * 定义一个方法后置增强
+     *
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/8/18
+     */
+    @AfterReturning(pointcut = "servicesPoint()", returning = "val")
     public void afterReturning(Object val) {
         System.out.println("增强了 AnnotationAspectJAdvice.afterReturning方法，val=" + val);
     }
 
-    @AfterThrowing(value = "servicesPoint()", throwing = "e")
-    public void afterThrowing(JoinPoint joinPoint, Exception e) {
-        System.out.println("增强了 AnnotationAspectJAdvice.afterThrowing方法，joinPoint-" + joinPoint);
+    /**
+     * 定义一个异常通知增强
+     *
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/8/18
+     */
+    @AfterThrowing(pointcut = "servicesPoint()", throwing = "e")
+    public void afterThrowing(JoinPoint jp, Exception e) {
+        System.out.println("增强了 AnnotationAspectJAdvice.afterThrowing方法，joinPoint-" + jp);
         System.out.println("增强了 AnnotationAspectJAdvice.afterThrowing方法，e: " + e);
     }
 
-    @After(value = "execMethodPoint()")
-    public void after(JoinPoint joinPoint) {
-        System.out.println("增强了 AnnotationAspectJAdvice.after方法，joinPoint-" + joinPoint);
+    /**
+     * 定义一个最终通知增强
+     *
+     * @return void
+     * @author Rhys.Ni
+     * @date 2023/8/18
+     */
+    @After("execMethodsPoint()")
+    public void after(JoinPoint jp) {
+        System.out.println("增强了 AnnotationAspectJAdvice.after方法，joinPoint-" + jp);
     }
 }
 ```
@@ -3875,14 +3930,182 @@ public class AnnotationAspectJAdvice {
  * @version 1.0
  * @date 2023/8/15 1:55 AM
  */
+@Configuration
+@ComponentScan(basePackages = "com.rhys.testSourceCode.aop")
 public class AnnotationAopTest {
-    public static void main(String[] args) {
-        ApplicationContext applicationContext = new AnnotationConfigApplicationContext("com.rhys.testSourceCode.aop.beans");
-        BeanN beanN = applicationContext.getBean(BeanN.class);
-        beanN.execMethod("testVal");
-        beanN.serviceMethod("serviceMethod");
-        beanN.serviceMTest("serviceMTest");
+  public static void main(String[] args) {
+    ApplicationContext applicationContext = new AnnotationConfigApplicationContext(AnnotationAopTest.class);
+    BeanN beanN = applicationContext.getBean(BeanN.class);
+    beanN.execMethod("testVal");
+    System.out.println("=================================================================================");
+    beanN.serviceMethod("serviceMethod");
+    System.out.println("=================================================================================");
+    beanN.serviceMTest("serviceMTest");
+  }
+}
+```
+
+> 执行结果
+>
+> - 执行`exec`为前缀的方法时，切面会在执行方法前做一个增强操作，在方法执行后进行了最终通知增强操作
+> - 执行`service`为前缀的方法时，由于我们案例中存在两个相同前缀的方法，因此匹配到了两次增强操作，唯一的区别就是在`serviceMTest`方法中模拟了一个`异常增强`操作效果
+
+![image-20230818011029140](https://article.biliimg.com/bfs/article/3dd6f3d1b36e918e9ce94fb3e8d5b4807a362409.png)
+
+##### @EnableAspectJAutoProxy
+
+> `EnableAspectJAutoProxy注解`最主要的点就是会通过`@Import`将`AspectJAutoProxyRegistrar`注入到容器中，那么我们需要使用代理增强处理，就必须添加@EnableAspectJAutoProxy才生效
+
+```java
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+@Import(AspectJAutoProxyRegistrar.class)
+public @interface EnableAspectJAutoProxy {
+
+	/**
+	 * Indicate whether subclass-based (CGLIB) proxies are to be created as opposed
+	 * to standard Java interface-based proxies. The default is {@code false}.
+	 */
+	boolean proxyTargetClass() default false;
+
+	/**
+	 * Indicate that the proxy should be exposed by the AOP framework as a {@code ThreadLocal}
+	 * for retrieval via the {@link org.springframework.aop.framework.AopContext} class.
+	 * Off by default, i.e. no guarantees that {@code AopContext} access will work.
+	 * @since 4.3.1
+	 */
+	boolean exposeProxy() default false;
+
+}
+```
+
+##### AspectJAutoProxyRegistrar
+
+> 根据给定的@EnableAspectJAutoProxy注解，根据需要针对当前 BeanDefinitionRegistry 注册 `AnnotationAwareAspectJAutoProxyCreator`
+
+```java
+class AspectJAutoProxyRegistrar implements ImportBeanDefinitionRegistrar {
+
+	/**
+	 * Register, escalate, and configure the AspectJ auto proxy creator based on the value
+	 * of the @{@link EnableAspectJAutoProxy#proxyTargetClass()} attribute on the importing
+	 * {@code @Configuration} class.
+	 */
+	@Override
+	public void registerBeanDefinitions(AnnotationMetadata importingClassMetadata, BeanDefinitionRegistry registry) {
+		// 将 AnnotationAwareAspectJAutoProxyCreator 注册到容器
+		AopConfigUtils.registerAspectJAnnotationAutoProxyCreatorIfNecessary(registry);
+
+		AnnotationAttributes enableAspectJAutoProxy =
+				AnnotationConfigUtils.attributesFor(importingClassMetadata, EnableAspectJAutoProxy.class);
+		if (enableAspectJAutoProxy != null) {
+			if (enableAspectJAutoProxy.getBoolean("proxyTargetClass")) {
+				AopConfigUtils.forceAutoProxyCreatorToUseClassProxying(registry);
+			}
+			if (enableAspectJAutoProxy.getBoolean("exposeProxy")) {
+				AopConfigUtils.forceAutoProxyCreatorToExposeProxy(registry);
+			}
+		}
+	}
+}
+```
+
+###### AnnotationAwareAspectJAutoProxyCreator
+
+> - `AspectJAwareAdvisorAutoProxyCreator`的子类，处理所有当前应用程序上下文中的AspectJ相关注释以及相关通知者（advisors）
+> - 任何AspectJ注解的类都会被自动识别，如果Spring AOP是基于代理的模型能够应用它们，那么它们的通知就会被应用。同时涵盖了方法执行连接点
+> - 如果使用了`<aop:include>`元素，只有名称与include模式匹配的`@AspectJ bean`才会被视为定义用于Spring自动代理
+
+![AnnotationAwareAspectJAutoProxyCreator](https://article.biliimg.com/bfs/article/7d4d9aaafecdfe950939ec84585d966cf5d94992.png)
+
+> 从结构上看，最上层实现了`BeanPostProcessor`接口，那么也就是说其实`AnnotationAwareAspectJAutoProxyCreator`这个类本质上就是一个Bean后置处理器,我们直接找到`InstantiationAwareBeanPostProcessor.postProcessBeforeInstantiation`的具体抽象实现类`AbstractAutoProxyCreator`，其中有关`postProcessBeforeInstantiation`方法具体的实现如下
+
+```java
+public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) {
+  Object cacheKey = getCacheKey(beanClass, beanName);
+
+  if (!StringUtils.hasLength(beanName) || !this.targetSourcedBeans.contains(beanName)) {
+    if (this.advisedBeans.containsKey(cacheKey)) {
+      return null;
     }
+    if (isInfrastructureClass(beanClass) || shouldSkip(beanClass, beanName)) {
+      this.advisedBeans.put(cacheKey, Boolean.FALSE);
+      return null;
+    }
+  }
+
+  // Create proxy here if we have a custom TargetSource.
+  // Suppresses unnecessary default instantiation of the target bean:
+  // The TargetSource will handle target instances in a custom fashion.
+  TargetSource targetSource = getCustomTargetSource(beanClass, beanName);
+  if (targetSource != null) {
+    // 如果我们有一个自定义的TargetSource
+    if (StringUtils.hasLength(beanName)) {
+      // 添加到targetSourcedBeans容器
+      this.targetSourcedBeans.add(beanName);
+    }
+    //在这里创建代理，从而抑制目标bean不必要的默认实例化:TargetSource将以自定义方式处理目标实例
+    Object[] specificInterceptors = getAdvicesAndAdvisorsForBean(beanClass, beanName, targetSource);
+    Object proxy = createProxy(beanClass, beanName, specificInterceptors, targetSource);
+    this.proxyTypes.put(cacheKey, proxy.getClass());
+    return proxy;
+  }
+
+  return null;
+}
+```
+
+> 查找当前 Bean 工厂中所有符合条件的Advisor Bean，忽略 FactoryBeans 并排除当前正在创建的 Bean。
+
+```java
+public List<Advisor> findAdvisorBeans() {
+  // Determine list of advisor bean names, if not cached already.
+  String[] advisorNames = this.cachedAdvisorBeanNames;
+  if (advisorNames == null) {
+    // Do not initialize FactoryBeans here: We need to leave all regular beans
+    // uninitialized to let the auto-proxy creator apply to them!
+    advisorNames = BeanFactoryUtils.beanNamesForTypeIncludingAncestors(
+      this.beanFactory, Advisor.class, true, false);
+    this.cachedAdvisorBeanNames = advisorNames;
+  }
+  if (advisorNames.length == 0) {
+    return new ArrayList<>();
+  }
+
+  List<Advisor> advisors = new ArrayList<>();
+  for (String name : advisorNames) {
+    if (isEligibleBean(name)) {
+      if (this.beanFactory.isCurrentlyInCreation(name)) {
+        if (logger.isTraceEnabled()) {
+          logger.trace("Skipping currently created advisor '" + name + "'");
+        }
+      }
+      else {
+        try {
+          advisors.add(this.beanFactory.getBean(name, Advisor.class));
+        }
+        catch (BeanCreationException ex) {
+          Throwable rootCause = ex.getMostSpecificCause();
+          if (rootCause instanceof BeanCurrentlyInCreationException) {
+            BeanCreationException bce = (BeanCreationException) rootCause;
+            String bceBeanName = bce.getBeanName();
+            if (bceBeanName != null && this.beanFactory.isCurrentlyInCreation(bceBeanName)) {
+              if (logger.isTraceEnabled()) {
+                logger.trace("Skipping advisor '" + name +
+                             "' with dependency on currently created bean: " + ex.getMessage());
+              }
+              // Ignore: indicates a reference back to the bean we're trying to advise.
+              // We want to find advisors other than the currently created bean itself.
+              continue;
+            }
+          }
+          throw ex;
+        }
+      }
+    }
+  }
+  return advisors;
 }
 ```
 

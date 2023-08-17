@@ -9,11 +9,9 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class BeanN {
-
     public void execMethod(String val) {
         System.out.println("BeanN.execMethod: val:" + val);
     }
-
     public String serviceMethod(String name) {
         System.out.println("BeanN.serviceMethod name:" + name);
         return name;
@@ -21,7 +19,7 @@ public class BeanN {
     public String serviceMTest(String name) {
         System.out.println("BeanN.serviceMTest name:" + name);
         if (!"serviceMTest".equals(name)) {
-            throw new IllegalStateException("name is not equals serviceMTest, name:" + name);
+            throw new IllegalStateException("异常增强测试信息： name is not equals serviceMTest, name:" + name);
 
         }
         return name;
