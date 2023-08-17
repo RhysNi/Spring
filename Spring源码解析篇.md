@@ -3509,41 +3509,6 @@ public class AspectJAroundAdvice extends AbstractAspectJAdvice implements Method
 }
 ```
 
-###### AspectJAfterAdvice
-
-> 包装AspectJ最终通知方法。
-
-```java
-public class AspectJAfterAdvice extends AbstractAspectJAdvice implements MethodInterceptor, AfterAdvice, Serializable {
-
-   public AspectJAfterAdvice(Method aspectJBeforeAdviceMethod,AspectJExpressionPointcut pointcut,AspectInstanceFactory aif) {
-      super(aspectJBeforeAdviceMethod, pointcut, aif);
-   }
-
-   @Override
-   public Object invoke(MethodInvocation mi) throws Throwable {
-      try {
-        // ReflectiveMethodInvocation实现类中的动态匹配逻辑
-         return mi.proceed();
-      }
-      finally {
-         invokeAdviceMethod(getJoinPointMatch(), null, null);
-      }
-   }
-
-   @Override
-   public boolean isBeforeAdvice() {
-      return false;
-   }
-
-   @Override
-   public boolean isAfterAdvice() {
-      return true;
-   }
-
-}
-```
-
 ###### AspectJAfterReturningAdvice
 
 > 包装AspectJ后置返回通知方法
@@ -3673,6 +3638,41 @@ public class AspectJAfterThrowingAdvice extends AbstractAspectJAdvice
     */
    private boolean shouldInvokeOnThrowing(Throwable ex) {
       return getDiscoveredThrowingType().isAssignableFrom(ex.getClass());
+   }
+
+}
+```
+
+###### AspectJAfterAdvice
+
+> 包装AspectJ最终通知方法。
+
+```java
+public class AspectJAfterAdvice extends AbstractAspectJAdvice implements MethodInterceptor, AfterAdvice, Serializable {
+
+   public AspectJAfterAdvice(Method aspectJBeforeAdviceMethod,AspectJExpressionPointcut pointcut,AspectInstanceFactory aif) {
+      super(aspectJBeforeAdviceMethod, pointcut, aif);
+   }
+
+   @Override
+   public Object invoke(MethodInvocation mi) throws Throwable {
+      try {
+        // ReflectiveMethodInvocation实现类中的动态匹配逻辑
+         return mi.proceed();
+      }
+      finally {
+         invokeAdviceMethod(getJoinPointMatch(), null, null);
+      }
+   }
+
+   @Override
+   public boolean isBeforeAdvice() {
+      return false;
+   }
+
+   @Override
+   public boolean isAfterAdvice() {
+      return true;
    }
 
 }

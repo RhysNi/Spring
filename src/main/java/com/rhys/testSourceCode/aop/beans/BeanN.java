@@ -9,9 +9,11 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class BeanN {
+
     public void execMethod(String val) {
         System.out.println("BeanN.execMethod: val:" + val);
     }
+
     public String serviceMethod(String name) {
         System.out.println("BeanN.serviceMethod name:" + name);
         return name;
