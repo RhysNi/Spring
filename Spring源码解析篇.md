@@ -4019,7 +4019,11 @@ class AspectJAutoProxyRegistrar implements ImportBeanDefinitionRegistrar {
 
 ![AnnotationAwareAspectJAutoProxyCreator](https://article.biliimg.com/bfs/article/7d4d9aaafecdfe950939ec84585d966cf5d94992.png)
 
-> 从结构上看，最上层实现了`BeanPostProcessor`接口，那么也就是说其实`AnnotationAwareAspectJAutoProxyCreator`这个类本质上就是一个Bean后置处理器,我们直接找到`InstantiationAwareBeanPostProcessor.postProcessBeforeInstantiation`的具体抽象实现类`AbstractAutoProxyCreator`，其中有关`postProcessBeforeInstantiation`方法具体的实现如下
+> 从结构上看，最上层实现了`BeanPostProcessor`接口，那么也就是说其实`AnnotationAwareAspectJAutoProxyCreator`这个类本质上就是一个Bean后置处理器,我们直接找到`BeanPostProcessor`子接口`InstantiationAwareBeanPostProcessor.postProcessBeforeInstantiation`方法，`postProcessBeforeInstantiation`是`InstantiationAwareBeanPostProcessor`
+
+![image-20230818160655058](https://article.biliimg.com/bfs/article/1f6b57fea0febdd9c32e3a6f8f370e9e6ad59284.png)
+
+> 的具体抽象实现类`AbstractAutoProxyCreator`，其中有关`postProcessBeforeInstantiation`方法具体的实现如下
 
 ```java
 public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) {
@@ -4054,7 +4058,42 @@ public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName
 
   return null;
 }
+
 ```
+
+###### Bean与BeanPostPorcessor的串联
+
+> 说到这个，我们又要提到一下前面分析过的`AbstractAutowireCapableBeanFactory.createBean`逻辑了，在进行`doCreateBean`之前还有一个步骤是`应用实例化后处理器，解析是否存在指定 Bean 的实例化前快捷方式`
+
+```java
+public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFactory implements AutowireCapableBeanFactory {
+    // ... 省略其他源码
+    
+    @Nullable
+	protected Object resolveBeforeInstantiation(String beanName, RootBeanDefinition mbd) {
+		Object bean = null;
+		if (!Boolean.FALSE.equals(mbd.beforeInstantiationResolved)) {
+			// Make sure bean class is actually resolved at this point.
+			if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
+				Class<?> targetType = determineTargetType(beanName, mbd);
+				if (targetType != null) {
+                    // 将InstantiationAwareBeanPostProcessors通过类和名称应用到指定的bean定义，调用它们的postProcessBeforeInstantiation方						  法。任何返回的对象都将被用作bean，而不是实际实例化目标bean。从后处理器返回的值将导致目标bean被实例化。
+					bean = applyBeanPostProcessorsBeforeInstantiation(targetType, beanName);
+					if (bean != null) {
+						bean = applyBeanPostProcessorsAfterInitialization(bean, beanName);
+					}
+				}
+			}
+			mbd.beforeInstantiationResolved = (bean != null);
+		}
+		return bean;
+	}
+    
+    // ... 省略其他源码
+}
+```
+
+
 
 > 查找当前 Bean 工厂中所有符合条件的Advisor Bean，忽略 FactoryBeans 并排除当前正在创建的 Bean。
 
