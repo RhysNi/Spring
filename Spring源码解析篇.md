@@ -4063,7 +4063,7 @@ public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName
 
 ###### Bean与BeanPostPorcessor的串联
 
-> 说到这个，我们又要提到一下前面分析过的`AbstractAutowireCapableBeanFactory.createBean`逻辑了，在进行`doCreateBean`之前还有一个步骤是`应用实例化后处理器，解析是否存在指定 Bean 的实例化前快捷方式`
+> 说到这个，我们又要提到一下前面分析过的`AbstractAutowireCapableBeanFactory.createBean`逻辑了，在进行`doCreateBean`之前还有一个步骤是：应用实例化后处理器，解析是否存在`指定Bean`的`实例化前快捷方式 `，相关逻辑在`AbstractAutowireCapableBeanFactory.resolveBeforeInstantiation`方法中
 
 ```java
 public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFactory implements AutowireCapableBeanFactory {
@@ -4077,9 +4077,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
 				Class<?> targetType = determineTargetType(beanName, mbd);
 				if (targetType != null) {
-                    // 将InstantiationAwareBeanPostProcessors通过类和名称应用到指定的bean定义，调用它们的postProcessBeforeInstantiation方						  法。任何返回的对象都将被用作bean，而不是实际实例化目标bean。从后处理器返回的值将导致目标bean被实例化。
+          // 将InstantiationAwareBeanPostProcessors通过类和名称应用到指定的bean定义，调用它们的postProcessBeforeInstantiation方法。							 任何返回的对象都将被用作bean，而不是实际实例化目标bean。从后处理器返回的值将导致目标bean被实例化。
 					bean = applyBeanPostProcessorsBeforeInstantiation(targetType, beanName);
 					if (bean != null) {
+            // 在任何bean初始化回调(如InitializingBean的afterPropertiesSet或自定义初始化方法)之后，将此BeanPostProcessor应用于给定的新								bean实例。这个bean已经被属性值填充了。返回的bean实例可能是原始bean实例的包装器。 对于FactoryBean，将为FactoryBean实例和由							 FactoryBean创建的对象调用这个回调(从Spring 2.0开始)。后处理器可以通过相应的FactoryBean instanceof检查来决定是应用于  									 FactoryBean还是已创建的对象，或者两者都应用。这个回调也将在由InstantiationAwareBeanPostProcessor触发的短路之后被调用。									 postProcessBeforeInstantiation方法，与所有其他BeanPostProcessor回调相反。默认实现按原样返回给定的bean。
 						bean = applyBeanPostProcessorsAfterInitialization(bean, beanName);
 					}
 				}
@@ -4090,10 +4091,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	}
     
     // ... 省略其他源码
-}
+}																																					
 ```
-
-
 
 > 查找当前 Bean 工厂中所有符合条件的Advisor Bean，忽略 FactoryBeans 并排除当前正在创建的 Bean。
 
