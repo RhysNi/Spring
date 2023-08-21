@@ -4019,47 +4019,9 @@ class AspectJAutoProxyRegistrar implements ImportBeanDefinitionRegistrar {
 
 ![AnnotationAwareAspectJAutoProxyCreator](https://article.biliimg.com/bfs/article/7d4d9aaafecdfe950939ec84585d966cf5d94992.png)
 
-> 从结构上看，最上层实现了`BeanPostProcessor`接口，那么也就是说其实`AnnotationAwareAspectJAutoProxyCreator`这个类本质上就是一个Bean后置处理器,我们直接找到`BeanPostProcessor`子接口`InstantiationAwareBeanPostProcessor.postProcessBeforeInstantiation`方法，`postProcessBeforeInstantiation`是`InstantiationAwareBeanPostProcessor`
+> 从结构上看，最上层实现了`BeanPostProcessor`接口，那么也就是说其实`AnnotationAwareAspectJAutoProxyCreator`这个类本质上就是一个Bean后置处理器,我们直接找到`BeanPostProcessor`子接口`InstantiationAwareBeanPostProcessor#postProcessBeforeInstantiation`方法,并没有做具体实现，留给实现类去做处理
 
 ![image-20230818160655058](https://article.biliimg.com/bfs/article/1f6b57fea0febdd9c32e3a6f8f370e9e6ad59284.png)
-
-> 的具体抽象实现类`AbstractAutoProxyCreator`，其中有关`postProcessBeforeInstantiation`方法具体的实现如下
-
-```java
-public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) {
-  Object cacheKey = getCacheKey(beanClass, beanName);
-
-  if (!StringUtils.hasLength(beanName) || !this.targetSourcedBeans.contains(beanName)) {
-    if (this.advisedBeans.containsKey(cacheKey)) {
-      return null;
-    }
-    if (isInfrastructureClass(beanClass) || shouldSkip(beanClass, beanName)) {
-      this.advisedBeans.put(cacheKey, Boolean.FALSE);
-      return null;
-    }
-  }
-
-  // Create proxy here if we have a custom TargetSource.
-  // Suppresses unnecessary default instantiation of the target bean:
-  // The TargetSource will handle target instances in a custom fashion.
-  TargetSource targetSource = getCustomTargetSource(beanClass, beanName);
-  if (targetSource != null) {
-    // 如果我们有一个自定义的TargetSource
-    if (StringUtils.hasLength(beanName)) {
-      // 添加到targetSourcedBeans容器
-      this.targetSourcedBeans.add(beanName);
-    }
-    //在这里创建代理，从而抑制目标bean不必要的默认实例化:TargetSource将以自定义方式处理目标实例
-    Object[] specificInterceptors = getAdvicesAndAdvisorsForBean(beanClass, beanName, targetSource);
-    Object proxy = createProxy(beanClass, beanName, specificInterceptors, targetSource);
-    this.proxyTypes.put(cacheKey, proxy.getClass());
-    return proxy;
-  }
-
-  return null;
-}
-
-```
 
 ###### Bean与BeanPostPorcessor的串联
 
@@ -4077,10 +4039,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
 				Class<?> targetType = determineTargetType(beanName, mbd);
 				if (targetType != null) {
-          // 将InstantiationAwareBeanPostProcessors通过类和名称应用到指定的bean定义，调用它们的postProcessBeforeInstantiation方法。							 任何返回的对象都将被用作bean，而不是实际实例化目标bean。从后处理器返回的值将导致目标bean被实例化。
+          		 // 将InstantiationAwareBeanPostProcessors通过类和名称应用到指定的bean定义，调用它们的postProcessBeforeInstantiation方					法。任何返回的对象都将被用作bean，而不是实际实例化目标bean。从后处理器返回的值将导致目标bean被实例化。
 					bean = applyBeanPostProcessorsBeforeInstantiation(targetType, beanName);
 					if (bean != null) {
-            // 在任何bean初始化回调(如InitializingBean的afterPropertiesSet或自定义初始化方法)之后，将此BeanPostProcessor应用于给定的新								bean实例。这个bean已经被属性值填充了。返回的bean实例可能是原始bean实例的包装器。 对于FactoryBean，将为FactoryBean实例和由							 FactoryBean创建的对象调用这个回调(从Spring 2.0开始)。后处理器可以通过相应的FactoryBean instanceof检查来决定是应用于  									 FactoryBean还是已创建的对象，或者两者都应用。这个回调也将在由InstantiationAwareBeanPostProcessor触发的短路之后被调用。									 postProcessBeforeInstantiation方法，与所有其他BeanPostProcessor回调相反。默认实现按原样返回给定的bean。
+            		 // 在任何bean初始化回调(如InitializingBean的afterPropertiesSet或自定义初始化方法)之后，将此BeanPostProcessor应用于给定						  的新bean实例。这个bean已经被属性值填充了。返回的bean实例可能是原始bean实例的包装器。 对于FactoryBean，将为FactoryBean实						 例和由FactoryBean创建的对象调用这个回调(从Spring 2.0开始)。后处理器可以通过相应的FactoryBean instanceof检查来决定是应用						   于FactoryBean还是已创建的对象，或者两者都应用。这个回调也将在由InstantiationAwareBeanPostProcessor触发的短路之后被调						用。postProcessBeforeInstantiation方法，与所有其他BeanPostProcessor回调相反。默认实现按原样返回给定的bean。
 						bean = applyBeanPostProcessorsAfterInitialization(bean, beanName);
 					}
 				}
@@ -4094,6 +4056,131 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 }																																					
 ```
 
+> `AbstractAutowireCapableBeanFactory#applyBeanPostProcessorsBeforeInstantiation`源码
+
+```java
+@Nullable
+protected Object applyBeanPostProcessorsBeforeInstantiation(Class<?> beanClass, String beanName) {
+    for (BeanPostProcessor bp : getBeanPostProcessors()) {
+        // 遍历beanPostProcessor集合，找到实现了InstantiationAwareBeanPostProcessor接口的beanPostProcessor
+        if (bp instanceof InstantiationAwareBeanPostProcessor) {
+            // 实例化InstantiationAwareBeanPostProcessor
+            InstantiationAwareBeanPostProcessor ibp = (InstantiationAwareBeanPostProcessor) bp;
+            // 调用 InstantiationAwareBeanPostProcessor#postProcessBeforeInstantiation来进行具体处理
+            Object result = ibp.postProcessBeforeInstantiation(beanClass, beanName);
+            if (result != null) {
+                return result;
+            }
+        }
+    }
+    return null;
+}
+```
+
+> 当执行到`ibp.postProcessBeforeInstantiation(beanClass, beanName)`方法时，则调用的就是`InstantiationAwareBeanPostProcessor#postProcessBeforeInstantiation`方法,那么对应的实现类则是`AbstractAutoProxyCreator`抽象实现类，逻辑如下：
+
+###### AbstractAutoProxyCreator
+
+> 具体抽象实现类`AbstractAutoProxyCreator`，其中有关`postProcessBeforeInstantiation`方法具体的实现如下
+
+```java
+public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) {
+  // 决定cache key的规则
+  // 如果beanName不为空，则根据beanClass进行FactoryBean.class.isAssignableFrom(beanClass)判断，如果true则返回 "&" + beanName，否则直接使用	 beanName作为Cache Key Name
+  // FactoryBean.class.isAssignableFrom(beanClass): 确定此class对象表示的类或接口是否与指定的class参数表示的类或接口相同，或者是否是该类或接口的													超类或超接口。如果是，则返回true;否则返回false。如果此Class对象表示基本类型，则如果指定的													   Class参数恰好是此Class对象，则此方法返回true;否则返回false。
+  // 如果beanName为空，则直接使用beanClass作为Cache Key Name
+  Object cacheKey = getCacheKey(beanClass, beanName);
+
+  if (!StringUtils.hasLength(beanName) || !this.targetSourcedBeans.contains(beanName)) {
+    if (this.advisedBeans.containsKey(cacheKey)) {
+      return null;
+    }
+    // 调用了两个关键方法
+    if (isInfrastructureClass(beanClass) || shouldSkip(beanClass, beanName)) {
+      this.advisedBeans.put(cacheKey, Boolean.FALSE);
+      return null;
+    }
+  }
+
+  // Create proxy here if we have a custom TargetSource.
+  // Suppresses unnecessary default instantiation of the target bean:
+  // The TargetSource will handle target instances in a custom fashion.
+  TargetSource targetSource = getCustomTargetSource(beanClass, beanName);
+  if (targetSource != null) {
+    // 如果我们有一个自定义的TargetSource
+    if (StringUtils.hasLength(beanName)) {
+      // 添加到targetSourcedBeans容器
+      this.targetSourcedBeans.add(beanName);
+    }
+      
+    //在这里创建代理，从而抑制目标bean不必要的默认实例化:TargetSource将以自定义方式处理目标实例
+    Object[] specificInterceptors = getAdvicesAndAdvisorsForBean(beanClass, beanName, targetSource);
+    Object proxy = createProxy(beanClass, beanName, specificInterceptors, targetSource);
+    // 将代理对象添加到proxyTypes容器中并返回该代理对象
+    this.proxyTypes.put(cacheKey, proxy.getClass());
+    return proxy;
+  }
+  return null;
+}
+```
+
+> `AbstractAutoProxyCreator#postProcessBeforeInstantiation`方法中调用了两个比较关键的方法，分别是`isInfrastructureClass(beanClass)`、`shouldSkip(beanClass, beanName)`
+
+###### isInfrastructureClass
+
+```java
+protected boolean isInfrastructureClass(Class<?> beanClass) {
+    boolean retVal = Advice.class.isAssignableFrom(beanClass) || Pointcut.class.isAssignableFrom(beanClass) || 	   					Advisor.class.isAssignableFrom(beanClass) || AopInfrastructureBean.class.isAssignableFrom(beanClass);
+    if (retVal && this.logger.isTraceEnabled()) {
+        this.logger.trace("Did not attempt to auto-proxy infrastructure class [" + beanClass.getName() + "]");
+    }
+    return retVal;
+}
+```
+
+###### shouldSkip
+
+> 这个逻辑是`AbstractAutoProxyCreator`的默认实现，简单理解一下就好，真正跟我们串联有关的实现在`AspectJAwareAdvisorAutoProxyCreator`实现类中
+
+```java
+protected boolean shouldSkip(Class<?> beanClass, String beanName) {
+    return AutoProxyUtils.isOriginalInstance(beanName, beanClass);
+}
+```
+
+```java
+public abstract class AutoProxyUtils {
+    // ...省略部分源码
+
+    static boolean isOriginalInstance(String beanName, Class<?> beanClass) {
+        if (StringUtils.hasLength(beanName) && beanName.length() == beanClass.getName().length() + ".ORIGINAL".length()) {
+            // 其实就是判断前缀是否是beanName 后缀是否以`.ORIGINAL`结尾
+            return beanName.startsWith(beanClass.getName()) && beanName.endsWith(".ORIGINAL");
+        } else {
+            return false;
+        }
+    }
+}
+```
+
+> `AspectJAwareAdvisorAutoProxyCreator`作为`AbstractAutoProxyCreator`子类的具体实现如下：
+
+```java
+protected boolean shouldSkip(Class<?> beanClass, String beanName) {
+    // 收集Advisor
+    List<Advisor> candidateAdvisors = this.findCandidateAdvisors();
+    Iterator var4 = candidateAdvisors.iterator();
+    Advisor advisor;
+    do {
+        if (!var4.hasNext()) {
+            return super.shouldSkip(beanClass, beanName);
+        }
+        advisor = (Advisor)var4.next();
+    } while(!(advisor instanceof AspectJPointcutAdvisor) || ((AspectJPointcutAdvisor)advisor).getAspectName().equals(beanName));
+    return true;
+}
+```
+
 > 查找当前 Bean 工厂中所有符合条件的Advisor Bean，忽略 FactoryBeans 并排除当前正在创建的 Bean。
 
 ```java
@@ -4103,6 +4190,7 @@ public List<Advisor> findAdvisorBeans() {
   if (advisorNames == null) {
     // Do not initialize FactoryBeans here: We need to leave all regular beans
     // uninitialized to let the auto-proxy creator apply to them!
+    // 获取当前BeanFactory中所有实现了Advisor接口的beanName
     advisorNames = BeanFactoryUtils.beanNamesForTypeIncludingAncestors(
       this.beanFactory, Advisor.class, true, false);
     this.cachedAdvisorBeanNames = advisorNames;
@@ -4111,9 +4199,13 @@ public List<Advisor> findAdvisorBeans() {
     return new ArrayList<>();
   }
 
+  // 用来收集最后返回的所有通知者的一个容器
   List<Advisor> advisors = new ArrayList<>();
+  // 遍历所有实现了Advisor接口的beanName
   for (String name : advisorNames) {
+    // isEligibleBean()是提供的一个hook方法，用于子类对Advisor进行过滤，这里默认返回值都是true
     if (isEligibleBean(name)) {
+       // 如果当前bean还在创建过程中，则略过，其创建完成之后会为其判断是否需要织入切面逻辑
       if (this.beanFactory.isCurrentlyInCreation(name)) {
         if (logger.isTraceEnabled()) {
           logger.trace("Skipping currently created advisor '" + name + "'");
@@ -4121,17 +4213,18 @@ public List<Advisor> findAdvisorBeans() {
       }
       else {
         try {
+          // 将当前bean添加到结果容器中
           advisors.add(this.beanFactory.getBean(name, Advisor.class));
         }
         catch (BeanCreationException ex) {
+          // 对获取过程中产生的异常进行封装
           Throwable rootCause = ex.getMostSpecificCause();
           if (rootCause instanceof BeanCurrentlyInCreationException) {
             BeanCreationException bce = (BeanCreationException) rootCause;
             String bceBeanName = bce.getBeanName();
             if (bceBeanName != null && this.beanFactory.isCurrentlyInCreation(bceBeanName)) {
               if (logger.isTraceEnabled()) {
-                logger.trace("Skipping advisor '" + name +
-                             "' with dependency on currently created bean: " + ex.getMessage());
+                logger.trace("Skipping advisor '" + name + "' with dependency on currently created bean: " + ex.getMessage());
               }
               // Ignore: indicates a reference back to the bean we're trying to advise.
               // We want to find advisors other than the currently created bean itself.
