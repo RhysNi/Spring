@@ -120,7 +120,7 @@
 
 ###### GenericApplicationContext
 
-> 主要做了XML可刷新的具体实现
+> Ss主要做了XML可刷新的具体实现
 
 ## BeanDefinition生成的两种方式
 
@@ -4011,7 +4011,7 @@ class AspectJAutoProxyRegistrar implements ImportBeanDefinitionRegistrar {
 }
 ```
 
-###### AnnotationAwareAspectJAutoProxyCreator
+##### AnnotationAwareAspectJAutoProxyCreator
 
 > - `AspectJAwareAdvisorAutoProxyCreator`的子类，处理所有当前应用程序上下文中的AspectJ相关注释以及相关通知者（advisors）
 > - 任何AspectJ注解的类都会被自动识别，如果Spring AOP是基于代理的模型能够应用它们，那么它们的通知就会被应用。同时涵盖了方法执行连接点
@@ -4023,7 +4023,7 @@ class AspectJAutoProxyRegistrar implements ImportBeanDefinitionRegistrar {
 
 ![image-20230818160655058](https://article.biliimg.com/bfs/article/1f6b57fea0febdd9c32e3a6f8f370e9e6ad59284.png)
 
-###### Bean与BeanPostPorcessor的串联
+#### Bean与BeanPostPorcessor的串联
 
 > 说到这个，我们又要提到一下前面分析过的`AbstractAutowireCapableBeanFactory.createBean`逻辑了，在进行`doCreateBean`之前还有一个步骤是：应用实例化后处理器，解析是否存在`指定Bean`的`实例化前快捷方式 `，相关逻辑在`AbstractAutowireCapableBeanFactory.resolveBeforeInstantiation`方法中
 
@@ -4039,10 +4039,10 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
 				Class<?> targetType = determineTargetType(beanName, mbd);
 				if (targetType != null) {
-          		 // 将InstantiationAwareBeanPostProcessors通过类和名称应用到指定的bean定义，调用它们的postProcessBeforeInstantiation方					法。任何返回的对象都将被用作bean，而不是实际实例化目标bean。从后处理器返回的值将导致目标bean被实例化。
+          // 将InstantiationAwareBeanPostProcessors通过类和名称应用到指定的bean定义，调用它们的postProcessBeforeInstantiation									 方法。任何返回的对象都将被用作bean，而不是实际实例化目标bean。从后处理器返回的值将导致目标bean被实例化。
 					bean = applyBeanPostProcessorsBeforeInstantiation(targetType, beanName);
 					if (bean != null) {
-            		 // 在任何bean初始化回调(如InitializingBean的afterPropertiesSet或自定义初始化方法)之后，将此BeanPostProcessor应用于给定						  的新bean实例。这个bean已经被属性值填充了。返回的bean实例可能是原始bean实例的包装器。 对于FactoryBean，将为FactoryBean实						 例和由FactoryBean创建的对象调用这个回调(从Spring 2.0开始)。后处理器可以通过相应的FactoryBean instanceof检查来决定是应用						   于FactoryBean还是已创建的对象，或者两者都应用。这个回调也将在由InstantiationAwareBeanPostProcessor触发的短路之后被调						用。postProcessBeforeInstantiation方法，与所有其他BeanPostProcessor回调相反。默认实现按原样返回给定的bean。
+          	// 在任何bean初始化回调(如InitializingBean的afterPropertiesSet或自定义初始化方法)之后，将此BeanPostProcessor应用于给定						 			 的新bean实例。这个bean已经被属性值填充了。返回的bean实例可能是原始bean实例的包装器。 对于FactoryBean，将为FactoryBean实								 例和由FactoryBean创建的对象调用这个回调(从Spring 2.0开始)。后处理器可以通过相应的FactoryBean instanceof检查来决定是应用						 	   于FactoryBean还是已创建的对象，或者两者都应用。这个回调也将在由InstantiationAwareBeanPostProcessor触发的短路之后被调									 用。postProcessBeforeInstantiation方法，与所有其他BeanPostProcessor回调相反。默认实现按原样返回给定的bean。
 						bean = applyBeanPostProcessorsAfterInitialization(bean, beanName);
 					}
 				}
@@ -4079,48 +4079,50 @@ protected Object applyBeanPostProcessorsBeforeInstantiation(Class<?> beanClass, 
 
 > 当执行到`ibp.postProcessBeforeInstantiation(beanClass, beanName)`方法时，则调用的就是`InstantiationAwareBeanPostProcessor#postProcessBeforeInstantiation`方法,那么对应的实现类则是`AbstractAutoProxyCreator`抽象实现类，逻辑如下：
 
-###### AbstractAutoProxyCreator
+##### AbstractAutoProxyCreator
 
 > 具体抽象实现类`AbstractAutoProxyCreator`，其中有关`postProcessBeforeInstantiation`方法具体的实现如下
 
 ```java
-public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) {
-  // 决定cache key的规则
-  // 如果beanName不为空，则根据beanClass进行FactoryBean.class.isAssignableFrom(beanClass)判断，如果true则返回 "&" + beanName，否则直接使用	 beanName作为Cache Key Name
-  // FactoryBean.class.isAssignableFrom(beanClass): 确定此class对象表示的类或接口是否与指定的class参数表示的类或接口相同，或者是否是该类或接口的													超类或超接口。如果是，则返回true;否则返回false。如果此Class对象表示基本类型，则如果指定的													   Class参数恰好是此Class对象，则此方法返回true;否则返回false。
-  // 如果beanName为空，则直接使用beanClass作为Cache Key Name
-  Object cacheKey = getCacheKey(beanClass, beanName);
+public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport implements SmartInstantiationAwareBeanPostProcessor, BeanFactoryAware {
+  public Object postProcessBeforeInstantiation(Class<?> beanClass, String beanName) {
+    // 决定cache key的规则
+    // 如果beanName不为空，则根据beanClass进行FactoryBean.class.isAssignableFrom(beanClass)判断，如果true则返回 "&" + beanName，否				 则直接使用beanName作为Cache Key Name
+    // FactoryBean.class.isAssignableFrom(beanClass): 确定此class对象表示的类或接口是否与指定的class参数表示的类或接口相同，或者是否是该			 类或接口的超类或超接口。如果是，则返回true;否则返回false。如果此Class对象表示基本类型，则如果指定的													   					 Class参数恰好是此Class对象，则此方法返回true;否则返回false。
+    // 如果beanName为空，则直接使用beanClass作为Cache Key Name
+    Object cacheKey = getCacheKey(beanClass, beanName);
 
-  if (!StringUtils.hasLength(beanName) || !this.targetSourcedBeans.contains(beanName)) {
-    if (this.advisedBeans.containsKey(cacheKey)) {
-      return null;
+    if (!StringUtils.hasLength(beanName) || !this.targetSourcedBeans.contains(beanName)) {
+      if (this.advisedBeans.containsKey(cacheKey)) {
+        return null;
+      }
+      // 调用了两个关键方法
+      if (isInfrastructureClass(beanClass) || shouldSkip(beanClass, beanName)) {
+        this.advisedBeans.put(cacheKey, Boolean.FALSE);
+        return null;
+      }
     }
-    // 调用了两个关键方法
-    if (isInfrastructureClass(beanClass) || shouldSkip(beanClass, beanName)) {
-      this.advisedBeans.put(cacheKey, Boolean.FALSE);
-      return null;
-    }
-  }
 
-  // Create proxy here if we have a custom TargetSource.
-  // Suppresses unnecessary default instantiation of the target bean:
-  // The TargetSource will handle target instances in a custom fashion.
-  TargetSource targetSource = getCustomTargetSource(beanClass, beanName);
-  if (targetSource != null) {
-    // 如果我们有一个自定义的TargetSource
-    if (StringUtils.hasLength(beanName)) {
-      // 添加到targetSourcedBeans容器
-      this.targetSourcedBeans.add(beanName);
+    // Create proxy here if we have a custom TargetSource.
+    // Suppresses unnecessary default instantiation of the target bean:
+    // The TargetSource will handle target instances in a custom fashion.
+    TargetSource targetSource = getCustomTargetSource(beanClass, beanName);
+    if (targetSource != null) {
+      // 如果我们有一个自定义的TargetSource
+      if (StringUtils.hasLength(beanName)) {
+        // 添加到targetSourcedBeans容器
+        this.targetSourcedBeans.add(beanName);
+      }
+
+      //在这里创建代理，从而抑制目标bean不必要的默认实例化:TargetSource将以自定义方式处理目标实例
+      Object[] specificInterceptors = getAdvicesAndAdvisorsForBean(beanClass, beanName, targetSource);
+      Object proxy = createProxy(beanClass, beanName, specificInterceptors, targetSource);
+      // 将代理对象添加到proxyTypes容器中并返回该代理对象
+      this.proxyTypes.put(cacheKey, proxy.getClass());
+      return proxy;
     }
-      
-    //在这里创建代理，从而抑制目标bean不必要的默认实例化:TargetSource将以自定义方式处理目标实例
-    Object[] specificInterceptors = getAdvicesAndAdvisorsForBean(beanClass, beanName, targetSource);
-    Object proxy = createProxy(beanClass, beanName, specificInterceptors, targetSource);
-    // 将代理对象添加到proxyTypes容器中并返回该代理对象
-    this.proxyTypes.put(cacheKey, proxy.getClass());
-    return proxy;
+    return null;
   }
-  return null;
 }
 ```
 
@@ -4140,11 +4142,13 @@ protected boolean isInfrastructureClass(Class<?> beanClass) {
 
 ###### shouldSkip
 
-> 这个逻辑是`AbstractAutoProxyCreator`的默认实现，简单理解一下就好，真正跟我们串联有关的实现在`AspectJAwareAdvisorAutoProxyCreator`实现类中
+> 这个逻辑是`AbstractAutoProxyCreator`的默认实现
 
 ```java
-protected boolean shouldSkip(Class<?> beanClass, String beanName) {
-    return AutoProxyUtils.isOriginalInstance(beanName, beanClass);
+public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport implements SmartInstantiationAwareBeanPostProcessor, BeanFactoryAware {
+  protected boolean shouldSkip(Class<?> beanClass, String beanName) {
+    	return AutoProxyUtils.isOriginalInstance(beanName, beanClass);
+	}
 }
 ```
 
@@ -4163,7 +4167,7 @@ public abstract class AutoProxyUtils {
 }
 ```
 
-> `AspectJAwareAdvisorAutoProxyCreator`作为`AbstractAutoProxyCreator`子类的具体实现如下：
+> `AspectJAwareAdvisorAutoProxyCreator`作为`AbstractAutoProxyCreator`子类的具体实现如下：主要就是收集所有`Advisor`，然后遍历逐个判断是否需要跳过，最终调用的还是上面`AbstractAutoProxyCreator#shouldSkip`方法
 
 ```java
 protected boolean shouldSkip(Class<?> beanClass, String beanName) {
@@ -4237,6 +4241,362 @@ public List<Advisor> findAdvisorBeans() {
     }
   }
   return advisors;
+}
+```
+
+> `AbstractAutowireCapableBeanFactory#applyBeanPostProcessorsAfterInitialization`方法源码
+
+```java
+public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFactory implements AutowireCapableBeanFactory {
+	// 省略部分源码...
+	@Override
+	public Object applyBeanPostProcessorsAfterInitialization(Object existingBean, String beanName)
+			throws BeansException {
+
+		Object result = existingBean;
+		for (BeanPostProcessor processor : getBeanPostProcessors()) {
+			Object current = processor.postProcessAfterInitialization(result, beanName);
+			if (current == null) {
+				return result;
+			}
+			result = current;
+		}
+		return result;
+	}
+  // 省略部分源码...
+}
+```
+
+> 那么基于我们对`BeanPostProcessor`的理解，`BeanPostProcessor`中只有两个方法就是前后增强的默认方法，剩下具体的实现逻辑就是交给各个`具体Bean后置处理器`中去自行实现了，我们这里看一下`AbstractAutoProxyCreator`中的实现逻辑
+
+```java
+public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport implements SmartInstantiationAwareBeanPostProcessor, BeanFactoryAware {
+  // 省略部分源码...
+  @Override
+	public Object postProcessAfterInitialization(@Nullable Object bean, String beanName) {
+		if (bean != null) {
+			Object cacheKey = getCacheKey(bean.getClass(), beanName);
+			if (this.earlyProxyReferences.remove(cacheKey) != bean) {
+				return wrapIfNecessary(bean, beanName, cacheKey);
+			}
+		}
+		return bean;
+	}
+  // 省略部分源码...
+}
+```
+
+> `AbstractAutoProxyCreator#postProcessAfterInitialization`中调用了`wrapIfNecessary`方法
+
+```java
+public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport implements SmartInstantiationAwareBeanPostProcessor, BeanFactoryAware {
+  // 省略部分源码...
+  protected Object wrapIfNecessary(Object bean, String beanName, Object cacheKey) {
+		if (StringUtils.hasLength(beanName) && this.targetSourcedBeans.contains(beanName)) {
+			return bean;
+		}
+		if (Boolean.FALSE.equals(this.advisedBeans.get(cacheKey))) {
+			return bean;
+		}
+		if (isInfrastructureClass(bean.getClass()) || shouldSkip(bean.getClass(), beanName)) {
+			this.advisedBeans.put(cacheKey, Boolean.FALSE);
+			return bean;
+		}
+
+		// Create proxy if we have advice.
+    // 获取到所有的通知者
+		Object[] specificInterceptors = getAdvicesAndAdvisorsForBean(bean.getClass(), beanName, null);
+    // DO_NOT_PROXY: 这个静态变量其实是一个空的object[]，如果没有找到满足条件的通知者就返回DO_NOT_PROXY，
+    // 是个容器也是个标识 != DO_NOT_PROXY 就代表需要创建代理
+		if (specificInterceptors != DO_NOT_PROXY) {
+      // 通知者集合不为空的时候添加到advisedBeans容器中
+			this.advisedBeans.put(cacheKey, Boolean.TRUE);
+      // 
+			Object proxy = createProxy(
+					bean.getClass(), beanName, specificInterceptors, new SingletonTargetSource(bean));
+			this.proxyTypes.put(cacheKey, proxy.getClass());
+			return proxy;
+		}
+
+		this.advisedBeans.put(cacheKey, Boolean.FALSE);
+		return bean;
+	}
+  // 省略部分源码...
+}
+```
+
+> 另外还有两处调用到了`applyBeanPostProcessorsBeforeInstantiation`和`applyBeanPostProcessorsAfterInitialization`方法，具体的调用其实就在`属性注入`-`populateBean`方法对属性初始化操作之后会进行Bean初始化`initializeBean`，部分源码如下
+
+```java
+public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFactory implements AutowireCapableBeanFactory {
+  // 省略部分源码...
+  protected Object doCreateBean(final String beanName, final RootBeanDefinition mbd, final @Nullable Object[] args)
+          throws BeanCreationException {
+
+    // 省略部分源码...
+    // Initialize the bean instance.
+        Object exposedObject = bean;
+        try {
+          populateBean(beanName, mbd, instanceWrapper);
+          // 这里调用initializeBean进行Bean的初始化
+          exposedObject = initializeBean(beanName, exposedObject, mbd);
+        }
+        catch (Throwable ex) {
+          if (ex instanceof BeanCreationException && beanName.equals(((BeanCreationException) ex).getBeanName())) {
+            throw (BeanCreationException) ex;
+          }
+          else {
+            throw new BeanCreationException(
+                mbd.getResourceDescription(), beanName, "Initialization of bean failed", ex);
+          }
+        }
+    // 省略部分源码...
+    }
+  // 省略部分源码...
+}
+```
+
+> 在`initializeBean`方法源码中，需要执行初始化方法`invokeInitMethods`，那么在调用`invokeInitMethods`方法前后分别调用到了`applyBeanPostProcessorsBeforeInitialization`和`applyBeanPostProcessorsAfterInitialization`方法
+
+```java
+public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFactory implements AutowireCapableBeanFactory {
+  // 省略部分源码...
+  protected Object initializeBean(final String beanName, final Object bean, @Nullable RootBeanDefinition mbd) {
+		// 省略部分源码...
+		Object wrappedBean = bean;
+		if (mbd == null || !mbd.isSynthetic()) {
+			wrappedBean = applyBeanPostProcessorsBeforeInitialization(wrappedBean, beanName);
+		}
+
+		try {
+			invokeInitMethods(beanName, wrappedBean, mbd);
+		}
+		catch (Throwable ex) {
+			throw new BeanCreationException(
+					(mbd != null ? mbd.getResourceDescription() : null),
+					beanName, "Invocation of init method failed", ex);
+		}
+		if (mbd == null || !mbd.isSynthetic()) {
+			wrappedBean = applyBeanPostProcessorsAfterInitialization(wrappedBean, beanName);
+		}
+
+		return wrappedBean;
+	}
+  // 省略部分源码...
+}
+```
+
+#### 代理类的结构
+
+##### AopProxy
+
+> 在前面看到`postProcessBeforeInstantiation`和`wrapIfNecessary`逻辑中经过一系列逻辑都会有一种情况会进行代理对象创建，为了更好的理解代理对象创建逻辑，首先了解一下AOP代理对象的结构如下：
+>
+> - 只负责对外提供代理对象获取能力
+> - 默认实现也只有两种：`JdkDynamicAopProxy(JDK动态代理)`、`CglibAopProxy（CgLib代理）`
+
+```java
+public interface AopProxy {
+
+	/**
+	 * Create a new proxy object.
+	 * <p>Uses the AopProxy's default class loader (if necessary for proxy creation):
+	 * usually, the thread context class loader.
+	 * @return the new proxy object (never {@code null})
+	 * @see Thread#getContextClassLoader()
+	 */
+	Object getProxy();
+
+	/**
+	 * Create a new proxy object.
+	 * <p>Uses the given class loader (if necessary for proxy creation).
+	 * {@code null} will simply be passed down and thus lead to the low-level
+	 * proxy facility's default, which is usually different from the default chosen
+	 * by the AopProxy implementation's {@link #getProxy()} method.
+	 * @param classLoader the class loader to create the proxy with
+	 * (or {@code null} for the low-level proxy facility's default)
+	 * @return the new proxy object (never {@code null})
+	 */
+	Object getProxy(@Nullable ClassLoader classLoader);
+
+}
+```
+
+![image-20230822030210577](https://article.biliimg.com/bfs/article/57bb25ea616b9ce9f7735415cee07ac79f8ebd92.png)
+
+##### ProxyFactory
+
+![ProxyFactory](https://article.biliimg.com/bfs/article/a31486f3ff4f9aba01f28bd9ecaab748fe669a91.png)
+
+###### ProxyCreatorSupport
+
+> 继承自`AdvisedSupport`,是代理工厂的基类。提供对可配置AopProxyFactory的方便访问
+
+###### AdvisedSupport
+
+> 继承自`ProxyConfig`类，是AOP代理配置管理器的基类。用于保存代理的快照.本身不是AOP代理，但是这个类的子类通常是工厂，从这些工厂直接获得AOP代理实例。这个类将子类从advice和Advisors的内务管理中解放出来，但并不实际实现由子类提供的代理创建方法。这个类是可序列化的;子类则不需要。
+>
+> - `AdvisedSupport`实现了`Advised`中处理`Advisor`和`Advice`的方法，`添加Advice`时会被`包装成一个Advisor`，默认使用的Advisor是`DefaultPointcutAdvisor`，DefaultPointcutAdvisor`默认的Pointcut`是`TruePointcut`（转换为一个匹配所有方法调用的Advisor与代理对象绑定）
+> - `AdvisedSupport`同时会`缓存对于某一个方法对应的所有Advisor（Map&#x3c;MethodCacheKey, List&#x3c;Object>> methodCache）`，当`Advice或Advisor发生变化时`,会`清空该缓存`。`getInterceptorsAndDynamicInterceptionAdvice`用来`获取对应代理方法对应有效的拦截器链 `
+> - `ProxyCreatorSupport`继承了`AdvisedSupport`,`ProxyCreatorSupport`正是实现代理的创建方法，`ProxyCreatorSupport`有一个成员变量`AopProxyFactory`，而该变量的值默认是`DefaultAopProxyFactory`
+
+![image-20230822034747215](/Users/Rhys.Ni/Library/Application Support/typora-user-images/image-20230822034747215.png)
+
+###### ProxyConfig
+
+> 用于创建代理时使用的配置的便利超类，以确保所有代理创建者具有一致的属性，主要属性如下：
+
+```java
+public class ProxyConfig implements Serializable {
+
+	/** use serialVersionUID from Spring 1.2 for interoperability. */
+	private static final long serialVersionUID = -8409359707199703185L;
+
+	// 是否代理的对象是类，动态代理分为代理接口和类，这里的属性默认是代理的接口
+	private boolean proxyTargetClass = false;
+  
+	// 是否进行主动优化，默认是不会主动优化
+	private boolean optimize = false;
+  
+	// 是否由此配置创建的代理不能被转成Advised类型，默认时候可转
+	boolean opaque = false;
+  
+	// 是否会暴露代理在调用的时候，默认是不会暴露
+	boolean exposeProxy = false;
+  
+	// 是否冻结此配置，不能被修改
+	private boolean frozen = false;
+
+  
+  // 省略其他源码...
+}
+```
+
+###### **Advised** 接口
+
+> 主要就是提供`advisors容器`的维护能力以及其他一些扩展能力,由持有`AOP代理工厂配置`的类实现。该配置包括`拦截器`和`其他通知、顾问和代理接口`。`任何从Spring获得的AOP代理`都可以被`强制转换`到这个接口，以允许对它的AOP通知进行操作
+
+###### **TargetClassAware**接口
+
+> 用于在代理后面公开目标类的最小接口
+
+```java
+public interface TargetClassAware {
+
+	/**
+	 * Return the target class behind the implementing object
+	 * (typically a proxy configuration or an actual proxy).
+	 * @return the target Class, or {@code null} if not known
+	 */
+  // 返回实现对象后面的目标类(通常是代理配置或实际代理)
+	@Nullable
+	Class<?> getTargetClass();
+
+}
+```
+
+##### AopProxyFactory
+
+> 存在于`ProxyCreatorSupport`中，是`ProxyCreatorSupport`中的一个属性
+
+```java
+public interface AopProxyFactory {
+
+	/**
+	 * Create an {@link AopProxy} for the given AOP configuration.
+	 * @param config the AOP configuration in the form of an
+	 * AdvisedSupport object
+	 * @return the corresponding AOP proxy
+	 * @throws AopConfigException if the configuration is invalid
+	 */
+  // 为给定的AOP配置创建一个AopProxy
+	AopProxy createAopProxy(AdvisedSupport config) throws AopConfigException;
+}
+```
+
+###### DefaultAopProxyFactory
+
+> 是`AopProxyFactory`的默认实现类，负责创建CGLIB代理或JDK动态代理，源码如下:
+
+```java
+public class DefaultAopProxyFactory implements AopProxyFactory, Serializable {
+	@Override
+	public AopProxy createAopProxy(AdvisedSupport config) throws AopConfigException {
+    // 对于给定的AdvisedSupport实例，如果下列条件之一为真，则创建CGLIB代理: 设置了优化标志||设置proxyTargetClass标志||没有指定代理接口
+    // 指定proxyTargetClass来强制使用CGLIB代理，或者指定一个或多个接口来使用JDK动态代理
+		if (config.isOptimize() || config.isProxyTargetClass() || hasNoUserSuppliedProxyInterfaces(config)) {
+      // 从AdvisedSupport中获取目标类对象
+			Class<?> targetClass = config.getTargetClass();
+			if (targetClass == null) {
+				throw new AopConfigException("TargetSource cannot determine target class: " +
+						"Either an interface or a target is required for proxy creation.");
+			}
+      // 判断目标类是否是接口 如果目标类是接口或者目标类是Proxy类型，则使用JDK动态代理生成代理对象
+			if (targetClass.isInterface() || Proxy.isProxyClass(targetClass)) {
+				return new JdkDynamicAopProxy(config);
+			}
+      // 配置了使用Cglib进行动态代理或者目标类不是接口,那么使用Cglib的方式创建代理对象
+			return new ObjenesisCglibAopProxy(config);
+		}
+		else {
+			return new JdkDynamicAopProxy(config);
+		}
+	}
+
+	/**
+	 * Determine whether the supplied {@link AdvisedSupport} has only the
+	 * {@link org.springframework.aop.SpringProxy} interface specified
+	 * (or no proxy interfaces specified at all).
+	 */
+	private boolean hasNoUserSuppliedProxyInterfaces(AdvisedSupport config) {
+		Class<?>[] ifcs = config.getProxiedInterfaces();
+		return (ifcs.length == 0 || (ifcs.length == 1 && SpringProxy.class.isAssignableFrom(ifcs[0])));
+	}
+}
+```
+
+
+
+> 代理对象创建，源码如下：
+
+```java
+public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport implements SmartInstantiationAwareBeanPostProcessor, BeanFactoryAware {
+  protected Object createProxy(Class<?> beanClass, @Nullable String beanName,
+			@Nullable Object[] specificInterceptors, TargetSource targetSource) {
+		
+		if (this.beanFactory instanceof ConfigurableListableBeanFactory) {
+      // 暴露实现ConfigurableListableBeanFactory接口的Bean工厂对象
+			AutoProxyUtils.exposeTargetClass((ConfigurableListableBeanFactory) this.beanFactory, beanName, beanClass);
+		}
+		// 创建代理工厂
+		ProxyFactory proxyFactory = new ProxyFactory();
+    // 从当前对象复制配置，因为ProxyFactory继承自ProxyCreatorSupport
+    // ProxyCreatorSupport继承自AdvisedSupport
+    // AdvisedSupport继承自ProxyConfig
+    // 因此具备操作代理配置的能力
+		proxyFactory.copyFrom(this);
+
+		if (!proxyFactory.isProxyTargetClass()) {
+			if (shouldProxyTargetClass(beanClass, beanName)) {
+				proxyFactory.setProxyTargetClass(true);
+			}
+			else {
+				evaluateProxyInterfaces(beanClass, proxyFactory);
+			}
+		}
+
+		Advisor[] advisors = buildAdvisors(beanName, specificInterceptors);
+		proxyFactory.addAdvisors(advisors);
+		proxyFactory.setTargetSource(targetSource);
+		customizeProxyFactory(proxyFactory);
+
+		proxyFactory.setFrozen(this.freezeProxy);
+		if (advisorsPreFiltered()) {
+			proxyFactory.setPreFiltered(true);
+		}
+
+		return proxyFactory.getProxy(getProxyClassLoader());
+	}
 }
 ```
 
