@@ -4564,8 +4564,6 @@ public class DefaultAopProxyFactory implements AopProxyFactory, Serializable {
 }
 ```
 
-
-
 > 代理对象创建，源码如下：
 
 ```java
@@ -4579,21 +4577,28 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport imp
 		}
 		// 创建代理工厂
 		ProxyFactory proxyFactory = new ProxyFactory();
-    // 从当前对象复制配置，因为ProxyFactory继承自ProxyCreatorSupport
-    // ProxyCreatorSupport继承自AdvisedSupport
-    // AdvisedSupport继承自ProxyConfig
-    // 因此具备操作代理配置的能力
+        // 从当前对象复制配置，因为ProxyFactory继承自ProxyCreatorSupport
+        // ProxyCreatorSupport继承自AdvisedSupport
+        // AdvisedSupport继承自ProxyConfig
+        // 因此具备操作代理配置的能力
 		proxyFactory.copyFrom(this);
 
 		if (!proxyFactory.isProxyTargetClass()) {
+            // 如果isProxyTargetClass标志为false并且目标对象需要代理
 			if (shouldProxyTargetClass(beanClass, beanName)) {
+                // 设置该代理工厂的标志为true
 				proxyFactory.setProxyTargetClass(true);
 			}
 			else {
+                // 目标对象不需要代理则进行代理接口评估，主要就是获取beanClass所有接口，判断是不是具有符合条件的代理接口
+                // 存在多个代理接口并且不是配置回调接口和内部语言接口的就会将`hasReasonableProxyInterface`设置为true
+                // hasReasonableProxyInterface为true则会将对应接口添加到proxyFactory中
+                // 没有符合条件的接口则还是会将该proxyFactory中的ProxyTargetClass设置为True
 				evaluateProxyInterfaces(beanClass, proxyFactory);
 			}
 		}
-
+		
+      	// 
 		Advisor[] advisors = buildAdvisors(beanName, specificInterceptors);
 		proxyFactory.addAdvisors(advisors);
 		proxyFactory.setTargetSource(targetSource);
@@ -4608,4 +4613,6 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport imp
 	}
 }
 ```
+
+#### Aspect注解的解析
 
