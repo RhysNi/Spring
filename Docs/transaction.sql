@@ -10,8 +10,8 @@ CREATE TABLE `tab_user`
 -- test.tab_occupation definition
 CREATE TABLE `tab_occupation`
 (
-    `oid`        bigint                                  NOT NULL AUTO_INCREMENT,
-    `uName`      varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-    `occupation` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+    `oid`        bigint                                                       NOT NULL AUTO_INCREMENT,
+    `uName`      varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+    `occupation` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
     PRIMARY KEY (`oid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

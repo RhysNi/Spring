@@ -5347,7 +5347,7 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 > - 事务可以保证`当一个事务性单元内的所有操作全都执行完成`，否则不会永久更新面向数据的资源，通过将`一组业务相关的所有操作组合为一个要么全部成功，要么全部失败的事务单元`，可以简化`异常回滚(错误恢复)`，从而使我们的应用程序可靠性更高
 > - 想要将`一组业务相关的所有操作组合为一个要么全部成功，要么全部失败的事务单元`，必须满足`ACID属性`
 
-### 事务四大特性
+### 数据库事务四大特性
 
 > 事务四大特性正式上面提到的`ACID属性`,也就是`原子性`、`一致性`、`隔离性`、`永久性`
 
@@ -5372,3 +5372,203 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 ###### 应用层面
 
 > 通过代码判断数据库数据是否有效从而决定提交还是回滚数据
+
+#### Isolation-隔离性
+
+> 一个事务的执行不受其他事物的干扰
+
+##### 实现原理
+
+> - 写-写操作 ：通过锁实现
+> - 写-读操作：通过MVCC
+
+#### Durability-持久性
+
+> 事务提交成功，结果便是永久性的
+
+##### 实现原理
+
+> 依赖数据库保存数据
+
+### 数据库事务案例
+
+```sql
+-- test.tab_user definition
+-- 用户表
+CREATE TABLE `tab_user`
+(
+    ` uid`  varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+    ` name` varchar(100) COLLATE utf8mb4_unicode_ci                      NOT NULL,
+    ` age`  varchar(100) COLLATE utf8mb4_unicode_ci                      NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- test.tab_occupation definition
+-- 职业表
+CREATE TABLE `tab_occupation`
+(
+    `oid`        bigint                                                       NOT NULL AUTO_INCREMENT,
+    `uName`      varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+    `occupation` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+    PRIMARY KEY (`oid`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+> 创建实体类
+
+```java
+@Data
+public class User implements Serializable {
+    private String userId;
+    private String name;
+    private String age;
+}
+
+@Data
+public class Occupation implements Serializable {
+    private String userName;
+    private String occuation;
+}
+```
+
+> 添加Mysql依赖
+
+```xml
+<dependency>
+  <groupId>mysql</groupId>
+  <artifactId>mysql-connector-java</artifactId>
+  <version>8.0.22</version>
+</dependency>
+```
+
+##### 成功案例
+
+> 通过JDBC连接数据库操作一个事件：创建一个用户并给用户分配一个职业
+
+```java
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/9/4 12:15 AM
+ */
+public class TransactionTestMain {
+    private static final Log log = LogFactory.getLog(TransactionTestMain.class);
+
+    public static void main(String[] args) {
+        Connection connection = null;
+        Statement statement = null;
+        try {
+            connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/test?characterEncoding=utf-8&serverTimezone=UTC", "root", "980512@Nsd");
+            statement = connection.createStatement();
+            // 关闭自动提交
+            connection.setAutoCommit(false);
+            // 添加用户
+            statement.executeUpdate("INSERT INTO tab_user (uid, name, age) VALUES('" + UUID.randomUUID().toString().replaceAll("-", "") + "', 'RhysNi', '25')");
+            log.info("用户添加成功~");
+            // 分配职业
+            statement.executeUpdate("INSERT INTO tab_occupation (uName, occupation) VALUES('RhysNi', 'coder')");
+            log.info("职业分配成功~");
+            // 事务提交
+            connection.commit();
+            log.info("事务提交成功~");
+        } catch (SQLException e) {
+            try {
+                log.info("数据操作异常开始回滚...");
+                connection.rollback();
+                log.info("数据回滚成功~");
+            } catch (SQLException ex) {
+                throw new RuntimeException(ex);
+            }
+        } finally {
+            try {
+                if (connection != null) {
+                    connection.close();
+                }
+
+                if (statement != null) {
+                    statement.close();
+                }
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+}
+```
+
+> 执行结果
+
+![image-20230904012616739](https://article.biliimg.com/bfs/article/e55a70492a5c22d383e0316335ce7f8ec4c54126.png)
+
+> 数据库数据展示
+
+![image-20230904012813913](https://article.biliimg.com/bfs/article/ee4daac49b084b56ff1d252f5fa697639d37732a.png)
+
+##### 回滚案例
+
+> 我们创建用户成功后，分配职业的时候给职业名称设置长一点，让数据库数据超长报错我们看这个用户是否还能创建成功
+>
+> 修改成功案例中的相关代码如下
+
+```java
+public class TransactionTestMain {
+    private static final Log log = LogFactory.getLog(TransactionTestMain.class);
+
+    public static void main(String[] args) {
+        Connection connection = null;
+        Statement statement = null;
+        try {
+            connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/test?characterEncoding=utf-8&serverTimezone=UTC", "root", "980512@Nsd");
+            statement = connection.createStatement();
+            // 关闭自动提交
+            connection.setAutoCommit(false);
+            // 添加用户
+            statement.executeUpdate("INSERT INTO tab_user (uid, name, age) VALUES('" + UUID.randomUUID().toString().replaceAll("-", "") + "', 'RhysNi1', '26')");
+            log.info("用户添加成功~");
+            // 分配职业
+            statement.executeUpdate("INSERT INTO tab_occupation (uName, occupation) VALUES('RhysNi1', 'codercodercodercodercodercoder')");
+            log.info("职业分配成功~");
+            // 事务提交
+            connection.commit();
+            log.info("事务提交成功~");
+        } catch (SQLException e) {
+            try {
+                log.info("数据操作异常开始回滚...");
+                connection.rollback();
+                log.info("数据回滚成功~");
+            } catch (SQLException ex) {
+                throw new RuntimeException(ex);
+            }
+        } finally {
+            try {
+                if (connection != null) {
+                    connection.close();
+                }
+
+                if (statement != null) {
+                    statement.close();
+                }
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+}
+```
+
+> 执行结果
+
+![image-20230904014148214](https://article.biliimg.com/bfs/article/00e704b1fbe237e112b70046b7bb6da7e02bbc70.png)
+
+> 那么在执行第一条用户创建的时候从Debug流程中看是没有异常的
+
+![image-20230904014949171](https://article.biliimg.com/bfs/article/19299dcb105571ce7c1af8e5edc1cbf78b761e4b.png)
+
+> 在执行第二条职业分配语句的时候发生异常了，导致事件回滚
+
+![image-20230904015243601](https://article.biliimg.com/bfs/article/54de7ed6a448f31907f7ac4b7647cad281d04f03.png)
+
+> 因此最终数据库中没有插入新的数据
+
+![image-20230904020240949](https://article.biliimg.com/bfs/article/62779aa5a369e655108bead780f8919a7d32d0c0.png)
+

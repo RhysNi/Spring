@@ -11,6 +11,6 @@ import java.io.Serializable;
  */
 @Data
 public class Occupation implements Serializable {
-    private String uName;
-    private String occupation;
+    private String userName;
+    private String occuation;
 }
