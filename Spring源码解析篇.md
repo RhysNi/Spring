@@ -5572,3 +5572,19 @@ public class TransactionTestMain {
 
 ![image-20230904020240949](https://article.biliimg.com/bfs/article/62779aa5a369e655108bead780f8919a7d32d0c0.png)
 
+### 渐入Spring事务
+
+> 添加依赖
+
+```xml
+<dependency>
+  <groupId>org.springframework</groupId>
+  <artifactId>spring-tx</artifactId>
+  <version>5.2.15.RELEASE</version>
+  </dependency>
+```
+
+#### PlatformTransactionManager
+
+##### 事务管理器结构
+
