@@ -5584,6 +5584,8 @@ public class TransactionTestMain {
 
 ![TransactionManager](https://article.biliimg.com/bfs/article/d9b5f4e6d236f7040e2fa5a7f9546592012e982c.png)
 
+![TransactionManager](https://article.biliimg.com/bfs/article/2cf0b23f6b6a0a8a24a9384582a504bfd821830f.png)
+
 ##### TransactionManager
 
 > 顶级接口，无默认实现
