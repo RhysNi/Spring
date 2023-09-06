@@ -1,7 +1,3 @@
-[toc]
-
-
-
 # Spring源码解析篇
 
 ## 源码依赖导入
@@ -5587,4 +5583,43 @@ public class TransactionTestMain {
 #### PlatformTransactionManager
 
 ##### 事务管理器结构
+
+![TransactionManager](https://article.biliimg.com/bfs/article/d9b5f4e6d236f7040e2fa5a7f9546592012e982c.png)
+
+###### TransactionManager
+
+> 顶级接口，无默认实现
+
+```java
+public interface TransactionManager {
+}
+```
+
+###### PlatformTransactionManager
+
+> 平台事务管理器
+
+```java
+public interface PlatformTransactionManager extends TransactionManager {
+    TransactionStatus getTransaction(@Nullable TransactionDefinition var1) throws TransactionException;
+
+    void commit(TransactionStatus var1) throws TransactionException;
+
+    void rollback(TransactionStatus var1) throws TransactionException;
+}
+```
+
+###### ReactiveTransactionManager
+
+> 响应式编程的事务管理器
+
+```java
+public interface ReactiveTransactionManager extends TransactionManager {
+    Mono<ReactiveTransaction> getReactiveTransaction(@Nullable TransactionDefinition var1) throws TransactionException;
+
+    Mono<Void> commit(ReactiveTransaction var1) throws TransactionException;
+
+    Mono<Void> rollback(ReactiveTransaction var1) throws TransactionException;
+}
+```
 
