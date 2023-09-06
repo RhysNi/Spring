@@ -5580,11 +5580,19 @@ public class TransactionTestMain {
   </dependency>
 ```
 
+#### Spring事务
+
+```java
+
+```
+
+
+
 #### 事务管理器结构
 
 ![TransactionManager](https://article.biliimg.com/bfs/article/d9b5f4e6d236f7040e2fa5a7f9546592012e982c.png)
 
-![TransactionManager](https://article.biliimg.com/bfs/article/2cf0b23f6b6a0a8a24a9384582a504bfd821830f.png)
+![TransactionManager](https://article.biliimg.com/bfs/article/b3cadea5166fb87c3ad6f0a2303b184945925124.png)
 
 ##### TransactionManager
 

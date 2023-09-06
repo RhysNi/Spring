@@ -1,4 +1,4 @@
-package com.rhys.testSourceCode.transaction;
+package com.rhys.testSourceCode.transaction.entity;
 
 import lombok.Data;
 
