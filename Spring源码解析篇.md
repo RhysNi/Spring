@@ -5580,13 +5580,11 @@ public class TransactionTestMain {
   </dependency>
 ```
 
-#### PlatformTransactionManager
-
-##### 事务管理器结构
+#### 事务管理器结构
 
 ![TransactionManager](https://article.biliimg.com/bfs/article/d9b5f4e6d236f7040e2fa5a7f9546592012e982c.png)
 
-###### TransactionManager
+##### TransactionManager
 
 > 顶级接口，无默认实现
 
@@ -5595,21 +5593,7 @@ public interface TransactionManager {
 }
 ```
 
-###### PlatformTransactionManager
-
-> 平台事务管理器
-
-```java
-public interface PlatformTransactionManager extends TransactionManager {
-    TransactionStatus getTransaction(@Nullable TransactionDefinition var1) throws TransactionException;
-
-    void commit(TransactionStatus var1) throws TransactionException;
-
-    void rollback(TransactionStatus var1) throws TransactionException;
-}
-```
-
-###### ReactiveTransactionManager
+##### ReactiveTransactionManager
 
 > 响应式编程的事务管理器
 
@@ -5623,3 +5607,20 @@ public interface ReactiveTransactionManager extends TransactionManager {
 }
 ```
 
+##### PlatformTransactionManager
+
+> 平台事务管理器
+
+```java
+public interface PlatformTransactionManager extends TransactionManager {
+    TransactionStatus getTransaction(@Nullable TransactionDefinition var1) throws TransactionException;
+
+    void commit(TransactionStatus var1) throws TransactionException;
+
+    void rollback(TransactionStatus var1) throws TransactionException;
+}
+```
+
+###### JtaTransactionManager
+
+> JTA的transactionmanager实现，这个事务管理器适合处理分布式事务，即跨多个资源的事务，以及控制应用服务器资源上的事务(例如JNDI中的JDBC数据源)。对于一个JDBC数据源,DataSourceTransactionManager是完全足够了,和Hibernate用于访问单个资源(包括事务缓存),HibernateTransactionManager是合适的
