@@ -2,6 +2,8 @@ package com.rhys.testSourceCode.transaction.service;
 
 import com.rhys.testSourceCode.transaction.dao.OccupationDao;
 import com.rhys.testSourceCode.transaction.entity.Occupation;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -13,11 +15,14 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class OccupationService {
+    private static final Log log = LogFactory.getLog(OccupationService.class);
+
 
     @Autowired
     private OccupationDao occupationDao;
 
     public void save(Occupation occupation) {
         occupationDao.save(occupation);
+        log.info("职业分配成功~");
     }
 }

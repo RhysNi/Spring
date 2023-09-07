@@ -5393,9 +5393,9 @@ public class ReflectiveAspectJAdvisorFactory extends AbstractAspectJAdvisorFacto
 -- 用户表
 CREATE TABLE `tab_user`
 (
-    ` uid`  varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-    ` name` varchar(100) COLLATE utf8mb4_unicode_ci                      NOT NULL,
-    ` age`  varchar(100) COLLATE utf8mb4_unicode_ci                      NOT NULL
+    `uid`  varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+    `name` varchar(100) COLLATE utf8mb4_unicode_ci                      NOT NULL,
+    `age`  varchar(100) COLLATE utf8mb4_unicode_ci                      NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
@@ -5582,13 +5582,278 @@ public class TransactionTestMain {
 
 #### Spring事务
 
-```java
+> 自定义一个事务管理器
 
+```java
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/9/7 9:09 PM
+ */
+public class RhysDataSourceTransactionManager implements PlatformTransactionManager {
+    private static final Log log = LogFactory.getLog(RhysDataSourceTransactionManager.class);
+
+    private DataSource dataSource;
+
+    @Override
+    public TransactionStatus getTransaction(TransactionDefinition transactionDefinition) throws TransactionException {
+        try {
+            Connection connection = this.dataSource.getConnection();
+            //关闭自动提交】
+            connection.setAutoCommit(false);
+
+            //将连接放入线程上下文中，通过TransactionSynchronizationManager将dataSource和connection绑定
+            //保证后续同一事务中的业务操作获取到的都是相同的连接资源
+            ConnectionHolder connectionHolder = new ConnectionHolder(connection);
+            TransactionSynchronizationManager.bindResource(this.dataSource, connectionHolder);
+
+            return new SimpleTransactionStatus(true);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void commit(TransactionStatus transactionStatus) throws TransactionException {
+        // 回滚状态
+        if (transactionStatus.isRollbackOnly()) {
+            log.error("事务回滚~");
+            this.rollback(transactionStatus);
+        }
+        Connection connection = ((ConnectionHolder) TransactionSynchronizationManager.getResource(this.dataSource)).getConnection();
+        try {
+            connection.commit();
+            log.info("事务已提交~");
+        } catch (SQLException e) {
+            throw new TransactionUsageException("事务提交异常：", e);
+        } finally {
+            this.cleanup(connection);
+        }
+    }
+
+
+    @Override
+    public void rollback(TransactionStatus transactionStatus) throws TransactionException {
+        Connection connection = ((ConnectionHolder) TransactionSynchronizationManager.getResource(this.dataSource)).getConnection();
+        try {
+            connection.rollback();
+            log.error("事务回滚了~");
+        } catch (SQLException e) {
+            throw new TransactionUsageException("事务回滚异常：", e);
+        } finally {
+            this.cleanup(connection);
+        }
+    }
+
+    private void cleanup(Connection connection) {
+        // 解绑数据源
+        TransactionSynchronizationManager.unbindResource(this.dataSource);
+        // 开启自动提交
+        try {
+            connection.setAutoCommit(true);
+            connection.close();
+        } catch (SQLException e) {
+            throw new TransactionUsageException("恢复自动提交失败：", e);
+        }
+    }
+
+    public DataSource getDataSource() {
+        return dataSource;
+    }
+
+    public void setDataSource(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
+}
 ```
+
+> 编写Dao类
+
+```java
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/9/7 4:33 AM
+ */
+@Component
+public class UserDao {
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    public void save(User user) {
+        jdbcTemplate.update("INSERT INTO tab_user (uid, name, age) VALUES(?,?,?)", user.getUserId(), user.getName(), user.getAge());
+    }
+}
+```
+
+```java
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/9/7 4:34 AM
+ */
+@Component
+public class OccupationDao {
+
+  @Autowired
+  private JdbcTemplate jdbcTemplate;
+
+  public void save(Occupation occupation) {
+    jdbcTemplate.update("INSERT INTO tab_occupation (uName, occupation) VALUES(?,?)", occupation.getUserName(), occupation.getOccuation());
+  }
+}
+```
+
+> 编写对应Service类
+
+```java
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/9/7 4:33 AM
+ */
+@Service
+public class UserService {
+    private static final Log log = LogFactory.getLog(UserService.class);
+
+    @Autowired
+    private UserDao userDao;
+
+    @Autowired
+    private OccupationService occupationService;
+
+    @Transactional(rollbackFor = Exception.class)
+    public void save(User user, Occupation occupation) {
+        userDao.save(user);
+        log.info("用户添加成功~");
+
+        occupationService.save(occupation);
+    }
+}
+```
+
+```java
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/9/7 4:34 AM
+ */
+@Service
+public class OccupationService {
+    private static final Log log = LogFactory.getLog(OccupationService.class);
+
+
+    @Autowired
+    private OccupationDao occupationDao;
+
+    public void save(Occupation occupation) {
+        occupationDao.save(occupation);
+        log.info("职业分配成功~");
+    }
+}
+```
+
+> 新增相关XML配置
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <!--配置数据源-->
+    <bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource"
+          init-method="init" destroy-method="close">
+        <property name="driverClassName" value="com.mysql.cj.jdbc.Driver"/>
+        <property name="url" value="jdbc:mysql://101.133.157.40:3886/test?useUnicode=true&amp;characterEncoding=utf-8"/>
+        <property name="username" value="root"/>
+        <property name="password" value="980512@Nsd"/>
+        <!-- 配置初始化大小、最小、最大连接数 -->
+        <property name="initialSize" value="1"/>
+        <property name="minIdle" value="1"/>
+        <property name="maxActive" value="10"/>
+    </bean>
+
+    <!--配置JdbcTemplate-->
+    <bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate" scope="prototype">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+
+    <!--配置事务管理器-->
+    <bean id="txManager" class="com.rhys.testSourceCode.transaction.config.RhysDataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+</beans>
+```
+
+##### 成功案例
+
+```java
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/9/4 12:15 AM
+ */
+@Configuration
+@ImportResource("classpath:application.xml")
+@ComponentScan("com.rhys.testSourceCode.transaction")
+@EnableTransactionManagement
+public class SpringTransactionTestMain {
+    public static void main(String[] args) {
+
+        try (AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(SpringTransactionTestMain.class);) {
+            UserService userService = applicationContext.getBean(UserService.class);
+            userService.save(
+                    User.builder().userId(UUID.randomUUID().toString().replaceAll("-", "")).name("RhysNi1").age("26").build(),
+                    Occupation.builder().userName("RhysNi1").occuation("coder").build()
+            );
+        }
+    }
+}
+```
+
+![image-20230908021609388](https://article.biliimg.com/bfs/article/b01dad5707fbb8379ae23b38ed662f8346c69115.png)
+
+> 数据库成功新增了一组数据
+
+![image-20230908021654443](https://article.biliimg.com/bfs/article/bd0b43a57aee0b1d70aa32b6caf6510895eb6264.png)
+
+##### 回滚案例
+
+```java
+/**
+ * @author Rhys.Ni
+ * @version 1.0
+ * @date 2023/9/4 12:15 AM
+ */
+@Configuration
+@ImportResource("classpath:application.xml")
+@ComponentScan("com.rhys.testSourceCode.transaction")
+@EnableTransactionManagement
+public class SpringTransactionTestMain {
+  public static void main(String[] args) {
+    try (AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(SpringTransactionTestMain.class);) {
+      UserService userService = applicationContext.getBean(UserService.class);
+      userService.save(
+        User.builder().userId(UUID.randomUUID().toString().replaceAll("-","")).name("RhysNi3").age("26").build(),
+        Occupation.builder().userName("RhysNi3").occuation("codercodercodercodercodercodercoder").build()
+      );
+    }
+  }
+}
+```
+
+![image-20230908021737777](https://article.biliimg.com/bfs/article/74b3ea3b53e640f7e7b3bd73e09739a18bc74419.png)
+
+> 数据库中依旧是一组数据，没有新增数据
+
+![image-20230908021926041](https://article.biliimg.com/bfs/article/cf4add4aba280554e98489989070e67db105c227.png)
 
 #### 事务管理器结构
 
-![TransactionManager](D:\workspace\IdealProjects\SpringSource\Docs\TransactionManager.png)
+![TransactionManager](https://article.biliimg.com/bfs/article/0412fcd9da249a1318578c0702f77d8d1839d971.png)
 
 ##### TransactionManager
 
@@ -5629,8 +5894,62 @@ public interface PlatformTransactionManager extends TransactionManager {
 
 ###### DataSourceTransactionManager
 
-> 数据源事务管理器
+> 数据源事务管理器，对外提供了事务相关的操作能力
+
+![image-20230908023354301](https://article.biliimg.com/bfs/article/e19f4d99460aec37dd0c0048cba58060f8f219ef.png)
 
 ###### JtaTransactionManager
 
 > JTA的transactionmanager实现，这个事务管理器适合处理分布式事务，即跨多个资源的事务，以及控制应用服务器资源上的事务(例如JNDI中的JDBC数据源)。对于一个JDBC数据源,DataSourceTransactionManager是完全足够了
+
+#### Spring事务定义
+
+![image-20230908031304739](https://article.biliimg.com/bfs/article/7ca63ba3378d113a9911226fc3f36c388d07f980.png)
+
+> 在`PlatformTransactionManager`中有一个参数类型为`TransactionDefinition`,源码如下
+
+```java
+public interface TransactionDefinition {
+    int PROPAGATION_REQUIRED = 0;
+    int PROPAGATION_SUPPORTS = 1;
+    int PROPAGATION_MANDATORY = 2;
+    int PROPAGATION_REQUIRES_NEW = 3;
+    int PROPAGATION_NOT_SUPPORTED = 4;
+    int PROPAGATION_NEVER = 5;
+    int PROPAGATION_NESTED = 6;
+    int ISOLATION_DEFAULT = -1;
+    int ISOLATION_READ_UNCOMMITTED = 1;
+    int ISOLATION_READ_COMMITTED = 2;
+    int ISOLATION_REPEATABLE_READ = 4;
+    int ISOLATION_SERIALIZABLE = 8;
+    int TIMEOUT_DEFAULT = -1;
+		// 事务传播属性
+    default int getPropagationBehavior() {
+        return 0;
+    }
+		// 事务隔离级别
+    default int getIsolationLevel() {
+        return -1;
+    }
+		// 超时时间
+    default int getTimeout() {
+        return -1;
+    }
+		// 是否只读
+    default boolean isReadOnly() {
+        return false;
+    }
+
+    @Nullable
+    default String getName() {
+        return null;
+    }
+
+    static TransactionDefinition withDefaults() {
+        return StaticTransactionDefinition.INSTANCE;
+    }
+}
+```
+
+##### TransactionDefinition结构
+
