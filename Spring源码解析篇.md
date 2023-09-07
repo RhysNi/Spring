@@ -5586,13 +5586,9 @@ public class TransactionTestMain {
 
 ```
 
-
-
 #### 事务管理器结构
 
-![TransactionManager](https://article.biliimg.com/bfs/article/d9b5f4e6d236f7040e2fa5a7f9546592012e982c.png)
-
-![TransactionManager](https://article.biliimg.com/bfs/article/b3cadea5166fb87c3ad6f0a2303b184945925124.png)
+![TransactionManager](D:\workspace\IdealProjects\SpringSource\Docs\TransactionManager.png)
 
 ##### TransactionManager
 
@@ -5631,6 +5627,10 @@ public interface PlatformTransactionManager extends TransactionManager {
 }
 ```
 
+###### DataSourceTransactionManager
+
+> 数据源事务管理器
+
 ###### JtaTransactionManager
 
-> JTA的transactionmanager实现，这个事务管理器适合处理分布式事务，即跨多个资源的事务，以及控制应用服务器资源上的事务(例如JNDI中的JDBC数据源)。对于一个JDBC数据源,DataSourceTransactionManager是完全足够了,和Hibernate用于访问单个资源(包括事务缓存),HibernateTransactionManager是合适的
+> JTA的transactionmanager实现，这个事务管理器适合处理分布式事务，即跨多个资源的事务，以及控制应用服务器资源上的事务(例如JNDI中的JDBC数据源)。对于一个JDBC数据源,DataSourceTransactionManager是完全足够了
