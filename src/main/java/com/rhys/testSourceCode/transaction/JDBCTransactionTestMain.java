@@ -14,8 +14,8 @@ import java.util.UUID;
  * @version 1.0
  * @date 2023/9/4 12:15 AM
  */
-public class TransactionTestMain {
-    private static final Log log = LogFactory.getLog(TransactionTestMain.class);
+public class JDBCTransactionTestMain {
+    private static final Log log = LogFactory.getLog(JDBCTransactionTestMain.class);
 
     public static void main(String[] args) {
         Connection connection = null;

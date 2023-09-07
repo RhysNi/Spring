@@ -1,10 +1,11 @@
 package com.rhys.testSourceCode.transaction.service;
 
-import com.rhys.testSourceCode.transaction.dao.OccupationDao;
 import com.rhys.testSourceCode.transaction.dao.UserDao;
+import com.rhys.testSourceCode.transaction.entity.Occupation;
+import com.rhys.testSourceCode.transaction.entity.User;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
 
 /**
  * @author Rhys.Ni
@@ -14,11 +15,14 @@ import javax.annotation.Resource;
 @Service
 public class UserService {
 
-    @Resource
+    @Autowired
     private UserDao userDao;
 
-    @Resource
-    private OccupationDao occupationDao;
+    @Autowired
+    private OccupationService occupationService;
 
-
+    public void save(User user, Occupation occupation) {
+        userDao.save(user);
+        occupationService.save(occupation);
+    }
 }

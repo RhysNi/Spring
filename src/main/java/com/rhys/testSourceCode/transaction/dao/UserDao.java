@@ -1,9 +1,10 @@
 package com.rhys.testSourceCode.transaction.dao;
 
+import com.rhys.testSourceCode.transaction.entity.User;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.Resource;
 
 /**
  * @author Rhys.Ni
@@ -13,8 +14,10 @@ import javax.annotation.Resource;
 @Component
 public class UserDao {
 
-    @Resource
+    @Autowired
     private JdbcTemplate jdbcTemplate;
 
-
+    public void save(User user) {
+        jdbcTemplate.update("INSERT INTO tab_user (uid, name, age) VALUES(?,?,?)", user.getUserId(), user.getName(), user.getAge());
+    }
 }

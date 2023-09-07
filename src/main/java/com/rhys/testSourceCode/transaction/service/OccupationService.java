@@ -1,9 +1,10 @@
 package com.rhys.testSourceCode.transaction.service;
 
 import com.rhys.testSourceCode.transaction.dao.OccupationDao;
+import com.rhys.testSourceCode.transaction.entity.Occupation;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
 
 /**
  * @author Rhys.Ni
@@ -13,8 +14,10 @@ import javax.annotation.Resource;
 @Service
 public class OccupationService {
 
-    @Resource
+    @Autowired
     private OccupationDao occupationDao;
 
-
+    public void save(Occupation occupation) {
+        occupationDao.save(occupation);
+    }
 }
