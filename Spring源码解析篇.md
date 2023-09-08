@@ -5582,91 +5582,6 @@ public class TransactionTestMain {
 
 #### Spring事务
 
-> 自定义一个事务管理器
-
-```java
-/**
- * @author Rhys.Ni
- * @version 1.0
- * @date 2023/9/7 9:09 PM
- */
-public class RhysDataSourceTransactionManager implements PlatformTransactionManager {
-    private static final Log log = LogFactory.getLog(RhysDataSourceTransactionManager.class);
-
-    private DataSource dataSource;
-
-    @Override
-    public TransactionStatus getTransaction(TransactionDefinition transactionDefinition) throws TransactionException {
-        try {
-            Connection connection = this.dataSource.getConnection();
-            //关闭自动提交】
-            connection.setAutoCommit(false);
-
-            //将连接放入线程上下文中，通过TransactionSynchronizationManager将dataSource和connection绑定
-            //保证后续同一事务中的业务操作获取到的都是相同的连接资源
-            ConnectionHolder connectionHolder = new ConnectionHolder(connection);
-            TransactionSynchronizationManager.bindResource(this.dataSource, connectionHolder);
-
-            return new SimpleTransactionStatus(true);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Override
-    public void commit(TransactionStatus transactionStatus) throws TransactionException {
-        // 回滚状态
-        if (transactionStatus.isRollbackOnly()) {
-            log.error("事务回滚~");
-            this.rollback(transactionStatus);
-        }
-        Connection connection = ((ConnectionHolder) TransactionSynchronizationManager.getResource(this.dataSource)).getConnection();
-        try {
-            connection.commit();
-            log.info("事务已提交~");
-        } catch (SQLException e) {
-            throw new TransactionUsageException("事务提交异常：", e);
-        } finally {
-            this.cleanup(connection);
-        }
-    }
-
-
-    @Override
-    public void rollback(TransactionStatus transactionStatus) throws TransactionException {
-        Connection connection = ((ConnectionHolder) TransactionSynchronizationManager.getResource(this.dataSource)).getConnection();
-        try {
-            connection.rollback();
-            log.error("事务回滚了~");
-        } catch (SQLException e) {
-            throw new TransactionUsageException("事务回滚异常：", e);
-        } finally {
-            this.cleanup(connection);
-        }
-    }
-
-    private void cleanup(Connection connection) {
-        // 解绑数据源
-        TransactionSynchronizationManager.unbindResource(this.dataSource);
-        // 开启自动提交
-        try {
-            connection.setAutoCommit(true);
-            connection.close();
-        } catch (SQLException e) {
-            throw new TransactionUsageException("恢复自动提交失败：", e);
-        }
-    }
-
-    public DataSource getDataSource() {
-        return dataSource;
-    }
-
-    public void setDataSource(DataSource dataSource) {
-        this.dataSource = dataSource;
-    }
-}
-```
-
 > 编写Dao类
 
 ```java
@@ -5754,41 +5669,50 @@ public class OccupationService {
 }
 ```
 
-> 新增相关XML配置
+> 新增相关资源配置类
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<beans xmlns="http://www.springframework.org/schema/beans"
-       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-       xsi:schemaLocation="http://www.springframework.org/schema/beans
-        http://www.springframework.org/schema/beans/spring-beans.xsd">
+```java
+/**
+ * <p>
+ * <b>功能描述</b>
+ * </p >
+ *
+ * @author : RhysNi
+ * @version : v1.0
+ * @date : 2023/9/8 10:15
+ * @CopyRight :　<a href="https://blog.csdn.net/weixin_44977377?type=blog">倪倪N</a>
+ */
+@Configuration
+public class DataSourceConfig {
 
-    <!--配置数据源-->
-    <bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource"
-          init-method="init" destroy-method="close">
-        <property name="driverClassName" value="com.mysql.cj.jdbc.Driver"/>
-        <property name="url" value="jdbc:mysql://101.133.157.40:3886/test?useUnicode=true&amp;characterEncoding=utf-8"/>
-        <property name="username" value="root"/>
-        <property name="password" value="980512@Nsd"/>
-        <!-- 配置初始化大小、最小、最大连接数 -->
-        <property name="initialSize" value="1"/>
-        <property name="minIdle" value="1"/>
-        <property name="maxActive" value="10"/>
-    </bean>
+    @Bean
+    DruidDataSource getDruidDataSource() {
+        DruidDataSource druidDataSource = new DruidDataSource();
+        druidDataSource.setDriverClassName("com.mysql.cj.jdbc.Driver");
+        druidDataSource.setUrl("jdbc:mysql://101.133.157.40:3886/test?useUnicode=true&characterEncoding=utf-8");
+        druidDataSource.setUsername("root");
+        druidDataSource.setPassword("980512@Nsd");
+        druidDataSource.setInitialSize(1);
+        druidDataSource.setMinIdle(1);
+        druidDataSource.setMaxActive(10);
+        return druidDataSource;
+    }
 
-    <!--配置JdbcTemplate-->
-    <bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate" scope="prototype">
-        <property name="dataSource" ref="dataSource"/>
-    </bean>
+    @Bean
+    JdbcTemplate getJdbcTemplate(DruidDataSource dataSource) {
+        return new JdbcTemplate(dataSource);
+    }
 
-    <!--配置事务管理器-->
-    <bean id="txManager" class="com.rhys.testSourceCode.transaction.config.RhysDataSourceTransactionManager">
-        <property name="dataSource" ref="dataSource"/>
-    </bean>
-</beans>
+    @Bean
+    DataSourceTransactionManager getTransactionManager(DruidDataSource dataSource) {
+        return new DataSourceTransactionManager(dataSource);
+    }
+}
 ```
 
 ##### 成功案例
+
+> 添加`EnableTransactionManagement`注解开启事务管理
 
 ```java
 /**
@@ -5797,7 +5721,6 @@ public class OccupationService {
  * @date 2023/9/4 12:15 AM
  */
 @Configuration
-@ImportResource("classpath:application.xml")
 @ComponentScan("com.rhys.testSourceCode.transaction")
 @EnableTransactionManagement
 public class SpringTransactionTestMain {
@@ -5814,7 +5737,7 @@ public class SpringTransactionTestMain {
 }
 ```
 
-![image-20230908021609388](https://article.biliimg.com/bfs/article/b01dad5707fbb8379ae23b38ed662f8346c69115.png)
+![image-20230908160400374](https://article.biliimg.com/bfs/article/4132c0b7924034ec3f91395c6434758984c162ff.png)
 
 > 数据库成功新增了一组数据
 
@@ -5829,7 +5752,6 @@ public class SpringTransactionTestMain {
  * @date 2023/9/4 12:15 AM
  */
 @Configuration
-@ImportResource("classpath:application.xml")
 @ComponentScan("com.rhys.testSourceCode.transaction")
 @EnableTransactionManagement
 public class SpringTransactionTestMain {
@@ -5845,7 +5767,9 @@ public class SpringTransactionTestMain {
 }
 ```
 
-![image-20230908021737777](https://article.biliimg.com/bfs/article/74b3ea3b53e640f7e7b3bd73e09739a18bc74419.png)
+> 可以看到新增用户其实是成功的，但是由于职业分配中字段值超长了，导致了异常，所以最终事务没有提交成功
+
+![image-20230908165102514](https://article.biliimg.com/bfs/article/3a2d5abfa150e8df3560db5640430990c94867ee.png)
 
 > 数据库中依旧是一组数据，没有新增数据
 

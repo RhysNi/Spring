@@ -29,7 +29,6 @@ public class UserService {
     public void save(User user, Occupation occupation) {
         userDao.save(user);
         log.info("用户添加成功~");
-
         occupationService.save(occupation);
     }
 }

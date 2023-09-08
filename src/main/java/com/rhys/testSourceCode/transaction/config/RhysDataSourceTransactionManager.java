@@ -1,6 +1,10 @@
 package com.rhys.testSourceCode.transaction.config;
 
 import com.rhys.testSourceCode.transaction.service.UserService;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.jdbc.datasource.ConnectionHolder;
@@ -17,6 +21,8 @@ import java.sql.SQLException;
  * @version 1.0
  * @date 2023/9/7 9:09 PM
  */
+@Data
+@AllArgsConstructor
 public class RhysDataSourceTransactionManager implements PlatformTransactionManager {
     private static final Log log = LogFactory.getLog(RhysDataSourceTransactionManager.class);
 
@@ -82,13 +88,5 @@ public class RhysDataSourceTransactionManager implements PlatformTransactionMana
         } catch (SQLException e) {
             throw new TransactionUsageException("恢复自动提交失败：", e);
         }
-    }
-
-    public DataSource getDataSource() {
-        return dataSource;
-    }
-
-    public void setDataSource(DataSource dataSource) {
-        this.dataSource = dataSource;
     }
 }
