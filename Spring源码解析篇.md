@@ -5582,6 +5582,12 @@ public class TransactionTestMain {
 
 #### Spring事务
 
+##### 事务隔离级别
+
+
+
+##### 成功案例
+
 > 编写Dao类
 
 ```java
@@ -5710,8 +5716,6 @@ public class DataSourceConfig {
 }
 ```
 
-##### 成功案例
-
 > 添加`EnableTransactionManagement`注解开启事务管理
 
 ```java
@@ -5828,6 +5832,18 @@ public interface PlatformTransactionManager extends TransactionManager {
 
 #### Spring事务定义
 
+##### 事务传播行为
+
+|         事务传播属性          |                           属性描述                           |
+| :---------------------------: | :----------------------------------------------------------: |
+|   **PROPAGATION_REQUIRED**    |    支持当前现有的事务，如果不存在现有事务，则新建一个事务    |
+|   **PROPAGATION_SUPPORTS**    |   支持当前现有事务，如果不存在现有事务，则以非事务方式运行   |
+|   **PROPAGATION_MANDATORY**   |          支持当前事务，如果不存在现有事务，则抛异常          |
+| **PROPAGATION_REQUIRES_NEW**  |    新建一个事务，如果当前存在现有事务，则将该现有事务挂起    |
+| **PROPAGATION_NOT_SUPPORTED** |  以非事务方式运行，如果当前存在现有事务，则将该现有事务挂起  |
+|     **PROPAGATION_NEVER**     |       以非事务方式运行，如果当前存在现有事务，则抛异常       |
+|    **PROPAGATION_NESTED**     | 如果当前存在事务，则在嵌套事务内执行，如果不存在现有事务，则执行与**PROPAGATION_REQUIRED**类似的操作 |
+
 ![image-20230908031304739](https://article.biliimg.com/bfs/article/7ca63ba3378d113a9911226fc3f36c388d07f980.png)
 
 > 在`PlatformTransactionManager`中有一个参数类型为`TransactionDefinition`,源码如下
@@ -5874,6 +5890,8 @@ public interface TransactionDefinition {
     }
 }
 ```
+
+
 
 ##### TransactionDefinition结构
 

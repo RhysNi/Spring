@@ -1,10 +1,7 @@
 package com.rhys.testSourceCode.transaction.config;
 
-import com.rhys.testSourceCode.transaction.service.UserService;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.jdbc.datasource.ConnectionHolder;
