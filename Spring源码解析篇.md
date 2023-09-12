@@ -5832,21 +5832,9 @@ public interface PlatformTransactionManager extends TransactionManager {
 
 #### Spring事务定义
 
-##### 事务传播行为
-
-|         事务传播属性          |                           属性描述                           |
-| :---------------------------: | :----------------------------------------------------------: |
-|   **PROPAGATION_REQUIRED**    |    支持当前现有的事务，如果不存在现有事务，则新建一个事务    |
-|   **PROPAGATION_SUPPORTS**    |   支持当前现有事务，如果不存在现有事务，则以非事务方式运行   |
-|   **PROPAGATION_MANDATORY**   |          支持当前事务，如果不存在现有事务，则抛异常          |
-| **PROPAGATION_REQUIRES_NEW**  |    新建一个事务，如果当前存在现有事务，则将该现有事务挂起    |
-| **PROPAGATION_NOT_SUPPORTED** |  以非事务方式运行，如果当前存在现有事务，则将该现有事务挂起  |
-|     **PROPAGATION_NEVER**     |       以非事务方式运行，如果当前存在现有事务，则抛异常       |
-|    **PROPAGATION_NESTED**     | 如果当前存在事务，则在嵌套事务内执行，如果不存在现有事务，则执行与**PROPAGATION_REQUIRED**类似的操作 |
+> 在`PlatformTransactionManager`中有一个参数类型为`TransactionDefinition`,源码如下
 
 ![image-20230908031304739](https://article.biliimg.com/bfs/article/7ca63ba3378d113a9911226fc3f36c388d07f980.png)
-
-> 在`PlatformTransactionManager`中有一个参数类型为`TransactionDefinition`,源码如下
 
 ```java
 public interface TransactionDefinition {
@@ -5891,7 +5879,61 @@ public interface TransactionDefinition {
 }
 ```
 
+> 由上源码可以得到的信息是，在`TransactionDefinition`中定义了`事物的传播属性和隔离级别`
+
+##### 事务传播属性
+
+|           属性枚举            |                           属性描述                           |
+| :---------------------------: | :----------------------------------------------------------: |
+|   **PROPAGATION_REQUIRED**    |    支持当前现有的事务，如果不存在现有事务，则新建一个事务    |
+|   **PROPAGATION_SUPPORTS**    |   支持当前现有事务，如果不存在现有事务，则以非事务方式运行   |
+|   **PROPAGATION_MANDATORY**   |          支持当前事务，如果不存在现有事务，则抛异常          |
+| **PROPAGATION_REQUIRES_NEW**  |    新建一个事务，如果当前存在现有事务，则将该现有事务挂起    |
+| **PROPAGATION_NOT_SUPPORTED** |  以非事务方式运行，如果当前存在现有事务，则将该现有事务挂起  |
+|     **PROPAGATION_NEVER**     |       以非事务方式运行，如果当前存在现有事务，则抛异常       |
+|    **PROPAGATION_NESTED**     | 如果当前存在事务，则在嵌套事务内执行，如果不存在现有事务，则执行与**PROPAGATION_REQUIRED**类似的操作 |
+
+###### PROPAGATION_REQUIRED
+
+```java
+@Service
+public class UserService {
+    private static final Log log = LogFactory.getLog(UserService.class);
+
+    @Autowired
+    private UserDao userDao;
+
+    @Autowired
+    private OccupationService occupationService;
+
+    @Transactional(rollbackFor = Exception.class)
+    public void save(User user, Occupation occupation) {
+        userDao.save(user);
+        log.info("用户添加成功~");
+        occupationService.save(occupation);
+    }
+}
+```
+
+```java
+@Service
+public class OccupationService {
+    private static final Log log = LogFactory.getLog(OccupationService.class);
 
 
-##### TransactionDefinition结构
+    @Autowired
+    private OccupationDao occupationDao;
 
+    @Transactional(rollbackFor = Exception.class, propagation = Propagation.REQUIRED)
+    public void save(Occupation occupation) {
+        occupationDao.save(occupation);
+        log.info("职业分配成功~");
+    }
+}
+```
+
+
+
+> TransactionDefinition结构
+
+![image-20230913010329636](https://article.biliimg.com/bfs/article/a063bc6d87f7bbbfbfaf49008fb7da8c9aea0b45.png)
