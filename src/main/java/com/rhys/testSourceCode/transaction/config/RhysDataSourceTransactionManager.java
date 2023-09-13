@@ -1,7 +1,5 @@
 package com.rhys.testSourceCode.transaction.config;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.jdbc.datasource.ConnectionHolder;
@@ -18,8 +16,6 @@ import java.sql.SQLException;
  * @version 1.0
  * @date 2023/9/7 9:09 PM
  */
-@Data
-@AllArgsConstructor
 public class RhysDataSourceTransactionManager implements PlatformTransactionManager {
     private static final Log log = LogFactory.getLog(RhysDataSourceTransactionManager.class);
 
@@ -66,8 +62,8 @@ public class RhysDataSourceTransactionManager implements PlatformTransactionMana
     public void rollback(TransactionStatus transactionStatus) throws TransactionException {
         Connection connection = ((ConnectionHolder) TransactionSynchronizationManager.getResource(this.dataSource)).getConnection();
         try {
+            log.error("事务回滚~");
             connection.rollback();
-            log.error("事务回滚了~");
         } catch (SQLException e) {
             throw new TransactionUsageException("事务回滚异常：", e);
         } finally {
@@ -85,5 +81,20 @@ public class RhysDataSourceTransactionManager implements PlatformTransactionMana
         } catch (SQLException e) {
             throw new TransactionUsageException("恢复自动提交失败：", e);
         }
+    }
+
+    public RhysDataSourceTransactionManager() {
+    }
+
+    public RhysDataSourceTransactionManager(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
+
+    public DataSource getDataSource() {
+        return dataSource;
+    }
+
+    public void setDataSource(DataSource dataSource) {
+        this.dataSource = dataSource;
     }
 }

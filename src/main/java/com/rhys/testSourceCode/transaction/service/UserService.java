@@ -26,7 +26,7 @@ public class UserService {
     @Autowired
     private OccupationService occupationService;
 
-    @Transactional(rollbackFor = Exception.class, propagation = Propagation.REQUIRED)
+    @Transactional(rollbackFor = Exception.class)
     public void save(User user, Occupation occupation) {
         userDao.save(user);
         log.info("用户添加成功~");

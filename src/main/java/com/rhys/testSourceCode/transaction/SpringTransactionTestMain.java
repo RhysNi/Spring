@@ -20,12 +20,11 @@ import java.util.UUID;
 @ComponentScan("com.rhys.testSourceCode.transaction")
 public class SpringTransactionTestMain {
     public static void main(String[] args) {
-
         try (AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(SpringTransactionTestMain.class);) {
             UserService userService = applicationContext.getBean(UserService.class);
             userService.save(
                     User.builder().userId(UUID.randomUUID().toString().replaceAll("-", "")).name("RhysNi1").age("26").build(),
-                    Occupation.builder().userName("RhysNi1").occuation("codercodercodercodercodercodercodercoder").build()
+                    Occupation.builder().userName("RhysNi1").occuation("coder").build()
             );
         }
     }

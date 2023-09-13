@@ -37,8 +37,13 @@ public class DataSourceConfig {
         return new JdbcTemplate(dataSource);
     }
 
+    // @Bean
+    // // DataSourceTransactionManager getTransactionManager(DruidDataSource dataSource) {
+    // //     return new DataSourceTransactionManager(dataSource);
+    // // }
+
     @Bean
-    DataSourceTransactionManager getTransactionManager(DruidDataSource dataSource) {
-        return new DataSourceTransactionManager(dataSource);
+    RhysDataSourceTransactionManager getTransactionManager(DruidDataSource dataSource) {
+        return new RhysDataSourceTransactionManager(dataSource);
     }
 }
